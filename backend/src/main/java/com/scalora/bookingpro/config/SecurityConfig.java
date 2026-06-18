@@ -1,6 +1,7 @@
 package com.scalora.bookingpro.config;
 
 import com.scalora.bookingpro.security.JwtAuthenticationFilter;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -66,10 +67,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource(@Value("${app.cors.frontend-origin}") String frontendOrigin) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(frontendOrigin));
+        config.setAllowedOriginPatterns(Arrays.stream(frontendOrigin.split(",")).map(String::trim).toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        config.setAllowCredentials(true);
+        config.setAllowCredentials(false);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
