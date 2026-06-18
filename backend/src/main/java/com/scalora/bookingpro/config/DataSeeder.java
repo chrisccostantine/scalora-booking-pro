@@ -33,6 +33,31 @@ public class DataSeeder {
             Business marka = businesses.findBySlug("marka-store").orElseGet(() -> businesses.save(business("Marka Store", "marka-store", "Retail consultations and customer appointments.")));
             Business clinic = businesses.findBySlug("clinic-name").orElseGet(() -> businesses.save(business("Clinic Name", "clinic-name", "Modern clinic scheduling and patient visits.")));
 
+            services.findAll().stream()
+                .filter(service -> service.getBusiness() == null)
+                .forEach(service -> {
+                    service.setBusiness(edgard);
+                    services.save(service);
+                });
+            staff.findAll().stream()
+                .filter(member -> member.getBusiness() == null)
+                .forEach(member -> {
+                    member.setBusiness(edgard);
+                    staff.save(member);
+                });
+            testimonials.findAll().stream()
+                .filter(testimonial -> testimonial.getBusiness() == null)
+                .forEach(testimonial -> {
+                    testimonial.setBusiness(edgard);
+                    testimonials.save(testimonial);
+                });
+            businessInfo.findAll().stream()
+                .filter(info -> info.getBusiness() == null)
+                .forEach(info -> {
+                    info.setBusiness(edgard);
+                    businessInfo.save(info);
+                });
+
             seedBusinessAdmin(users, encoder, edgard, "admin@edgard-akar.local");
             seedBusinessAdmin(users, encoder, marka, "admin@marka-store.local");
             seedBusinessAdmin(users, encoder, clinic, "admin@clinic-name.local");

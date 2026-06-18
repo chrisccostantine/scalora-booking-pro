@@ -8,7 +8,7 @@ public class Staff {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @ManyToOne(optional = false)
+    @ManyToOne
     @JoinColumn(name = "business_id")
     private Business business;
     @Column(nullable = false)
