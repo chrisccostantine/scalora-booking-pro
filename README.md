@@ -41,6 +41,21 @@ Default seeded admin:
 - Email: `admin@scalora.local`
 - Password: `Admin123!`
 
+Admin access:
+
+- Main Scalora admin dashboard: `/#admin`
+- Business admin dashboard: `/#admin`
+- The dashboard changes behavior based on the logged-in role.
+
+Seeded accounts:
+
+- Scalora super admin: `admin@scalora.local` / `Admin123!`
+- Edgard Akar business admin: `admin@edgard-akar.local` / `Admin123!`
+- Marka Store business admin: `admin@marka-store.local` / `Admin123!`
+- Clinic Name business admin: `admin@clinic-name.local` / `Admin123!`
+
+`SUPER_ADMIN` can create and manage all businesses. `BUSINESS_ADMIN` can only manage the assigned business.
+
 ### Frontend
 
 ```bash

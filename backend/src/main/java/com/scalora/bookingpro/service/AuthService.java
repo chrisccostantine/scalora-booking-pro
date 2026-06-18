@@ -23,6 +23,13 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
         var user = users.findByEmail(request.email()).orElseThrow();
-        return new LoginResponse(jwtService.generate(user), user.getEmail(), user.getRole().name());
+        var business = user.getBusiness();
+        return new LoginResponse(
+            jwtService.generate(user),
+            user.getEmail(),
+            user.getRole().name(),
+            business == null ? null : business.getId(),
+            business == null ? null : business.getSlug()
+        );
     }
 }

@@ -8,7 +8,7 @@ public class BusinessInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @OneToOne(optional = false, fetch = FetchType.LAZY)
+    @OneToOne(optional = false)
     @JoinColumn(name = "business_id", unique = true)
     private Business business;
     private String businessName;

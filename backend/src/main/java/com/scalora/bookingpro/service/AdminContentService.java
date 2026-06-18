@@ -10,8 +10,10 @@ import com.scalora.bookingpro.dto.AdminDtos.TestimonialRequest;
 import com.scalora.bookingpro.dto.AdminDtos.TestimonialResponse;
 import com.scalora.bookingpro.entity.Business;
 import com.scalora.bookingpro.entity.BusinessInfo;
+import com.scalora.bookingpro.entity.Role;
 import com.scalora.bookingpro.entity.Staff;
 import com.scalora.bookingpro.entity.Testimonial;
+import com.scalora.bookingpro.entity.User;
 import com.scalora.bookingpro.exception.ApiException;
 import com.scalora.bookingpro.repository.BusinessInfoRepository;
 import com.scalora.bookingpro.repository.BusinessRepository;
@@ -45,6 +47,10 @@ public class AdminContentService {
 
     public BusinessResponse businessBySlug(String slug) {
         return businessResponse(findBusiness(slug));
+    }
+
+    public BusinessResponse businessById(Long id) {
+        return businessResponse(findBusiness(id));
     }
 
     public BusinessResponse createBusiness(BusinessRequest request) {
@@ -90,7 +96,20 @@ public class AdminContentService {
         return staffResponse(staff.save(member));
     }
 
+    public StaffResponse updateStaff(Long id, StaffRequest request, User user) {
+        Staff member = staff.findById(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Staff member not found"));
+        requireAccess(member.getBusiness().getId(), user);
+        apply(member, request);
+        return staffResponse(staff.save(member));
+    }
+
     public void deleteStaff(Long id) {
+        staff.deleteById(id);
+    }
+
+    public void deleteStaff(Long id, User user) {
+        Staff member = staff.findById(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Staff member not found"));
+        requireAccess(member.getBusiness().getId(), user);
         staff.deleteById(id);
     }
 
@@ -115,7 +134,20 @@ public class AdminContentService {
         return testimonialResponse(testimonials.save(testimonial));
     }
 
+    public TestimonialResponse updateTestimonial(Long id, TestimonialRequest request, User user) {
+        Testimonial testimonial = testimonials.findById(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Testimonial not found"));
+        requireAccess(testimonial.getBusiness().getId(), user);
+        apply(testimonial, request);
+        return testimonialResponse(testimonials.save(testimonial));
+    }
+
     public void deleteTestimonial(Long id) {
+        testimonials.deleteById(id);
+    }
+
+    public void deleteTestimonial(Long id, User user) {
+        Testimonial testimonial = testimonials.findById(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Testimonial not found"));
+        requireAccess(testimonial.getBusiness().getId(), user);
         testimonials.deleteById(id);
     }
 
@@ -167,6 +199,13 @@ public class AdminContentService {
 
     private String normalizeSlug(String slug) {
         return slug.toLowerCase().replaceAll("[^a-z0-9-]", "-").replaceAll("-+", "-").replaceAll("(^-|-$)", "");
+    }
+
+    private void requireAccess(Long businessId, User user) {
+        if (user.getRole() == Role.SUPER_ADMIN || user.getRole() == Role.ADMIN) return;
+        if (user.getBusiness() == null || !businessId.equals(user.getBusiness().getId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "You can only manage your assigned business.");
+        }
     }
 
     private void apply(Staff member, StaffRequest request) {

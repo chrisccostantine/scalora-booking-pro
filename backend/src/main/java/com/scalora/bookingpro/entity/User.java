@@ -18,7 +18,11 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Role role = Role.ADMIN;
+    private Role role = Role.BUSINESS_ADMIN;
+
+    @ManyToOne
+    @JoinColumn(name = "business_id")
+    private Business business;
 
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
@@ -31,6 +35,8 @@ public class User {
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+    public Business getBusiness() { return business; }
+    public void setBusiness(Business business) { this.business = business; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

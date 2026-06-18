@@ -60,6 +60,10 @@ function App() {
   const [testimonials, setTestimonials] = useState(fallbackTestimonials);
   const [businessInfo, setBusinessInfo] = useState(fallbackBusiness);
   const [token, setToken] = useState(localStorage.getItem('scalora_token'));
+  const [adminUser, setAdminUser] = useState(() => {
+    const stored = localStorage.getItem('scalora_admin');
+    return stored ? JSON.parse(stored) : null;
+  });
 
   useEffect(() => {
     const onHashChange = () => {
@@ -94,7 +98,7 @@ function App() {
     setMobileOpen(false);
   };
 
-  const adminVisible = route === '#admin' || route === '#dashboard';
+  const adminVisible = window.location.pathname === '/admin' || route === '#admin' || route === '#dashboard';
 
   return (
     <div className="min-h-screen bg-[#f7faf9] text-ink">
@@ -104,6 +108,8 @@ function App() {
           <AdminDashboard
             token={token}
             setToken={setToken}
+            adminUser={adminUser}
+            setAdminUser={setAdminUser}
             services={services}
             setServices={setServices}
             testimonials={testimonials}
@@ -114,7 +120,7 @@ function App() {
             setBusinesses={setBusinesses}
           />
         ) : (
-          <AdminLogin setToken={setToken} />
+          <AdminLogin setToken={setToken} setAdminUser={setAdminUser} />
         )
       ) : (
         <PublicSite
@@ -470,7 +476,7 @@ function ContactSection({ businessInfo, profileSlug }) {
   );
 }
 
-function AdminLogin({ setToken }) {
+function AdminLogin({ setToken, setAdminUser }) {
   const [form, setForm] = useState({ email: 'admin@scalora.local', password: 'Admin123!' });
   const [error, setError] = useState('');
 
@@ -480,7 +486,9 @@ function AdminLogin({ setToken }) {
     try {
       const result = await api.login(form);
       localStorage.setItem('scalora_token', result.token);
+      localStorage.setItem('scalora_admin', JSON.stringify(result));
       setToken(result.token);
+      setAdminUser(result);
       window.location.hash = '#dashboard';
     } catch (loginError) {
       setError(loginError.message);
@@ -514,7 +522,7 @@ function AdminLogin({ setToken }) {
   );
 }
 
-function AdminDashboard({ setToken, services, setServices, testimonials, setTestimonials, businessInfo, setBusinessInfo, businesses, setBusinesses }) {
+function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServices, testimonials, setTestimonials, businessInfo, setBusinessInfo, businesses, setBusinesses }) {
   const [bookings, setBookings] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -527,6 +535,7 @@ function AdminDashboard({ setToken, services, setServices, testimonials, setTest
   const [editingServiceId, setEditingServiceId] = useState(null);
   const [editingStaffId, setEditingStaffId] = useState(null);
   const [editingTestimonialId, setEditingTestimonialId] = useState(null);
+  const isSuperAdmin = adminUser?.role === 'SUPER_ADMIN' || adminUser?.role === 'ADMIN';
 
   const loadAdminData = () => {
     api.getAdminBusinesses().then((items) => {
@@ -554,7 +563,9 @@ function AdminDashboard({ setToken, services, setServices, testimonials, setTest
 
   const logout = () => {
     localStorage.removeItem('scalora_token');
+    localStorage.removeItem('scalora_admin');
     setToken(null);
+    setAdminUser(null);
     window.location.hash = '#admin';
   };
 
@@ -594,7 +605,8 @@ function AdminDashboard({ setToken, services, setServices, testimonials, setTest
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <p className="text-sm font-bold uppercase text-coral">Admin dashboard</p>
-            <h1 className="text-3xl font-bold">Booking operations</h1>
+            <h1 className="text-3xl font-bold">{isSuperAdmin ? 'Scalora platform admin' : 'Business admin dashboard'}</h1>
+            <p className="mt-1 text-sm text-graphite">{adminUser?.email}</p>
           </div>
           <button className="btn-secondary" onClick={logout}>Logout</button>
         </div>
@@ -618,12 +630,18 @@ function AdminDashboard({ setToken, services, setServices, testimonials, setTest
                 ))}
               </select>
             </div>
-            <div className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr_auto]">
-              <input placeholder="Business name" value={businessDraft.name} onChange={(event) => setBusinessDraft({ ...businessDraft, name: event.target.value })} />
-              <input placeholder="slug-name" value={businessDraft.slug} onChange={(event) => setBusinessDraft({ ...businessDraft, slug: event.target.value })} />
-              <input placeholder="Tagline" value={businessDraft.tagline} onChange={(event) => setBusinessDraft({ ...businessDraft, tagline: event.target.value })} />
-              <button className="btn-primary" onClick={saveBusiness}><Plus size={18} /> Add</button>
-            </div>
+            {isSuperAdmin ? (
+              <div className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr_auto]">
+                <input placeholder="Business name" value={businessDraft.name} onChange={(event) => setBusinessDraft({ ...businessDraft, name: event.target.value })} />
+                <input placeholder="slug-name" value={businessDraft.slug} onChange={(event) => setBusinessDraft({ ...businessDraft, slug: event.target.value })} />
+                <input placeholder="Tagline" value={businessDraft.tagline} onChange={(event) => setBusinessDraft({ ...businessDraft, tagline: event.target.value })} />
+                <button className="btn-primary" onClick={saveBusiness}><Plus size={18} /> Add</button>
+              </div>
+            ) : (
+              <div className="rounded-md bg-mist px-4 py-3 text-sm text-graphite">
+                Business admins can manage bookings, services, staff, testimonials, and profile details for their assigned business only.
+              </div>
+            )}
           </div>
         </section>
 

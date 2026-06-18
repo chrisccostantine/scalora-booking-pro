@@ -4,6 +4,8 @@ import com.scalora.bookingpro.dto.BookingDtos.BookingRequest;
 import com.scalora.bookingpro.dto.BookingDtos.BookingResponse;
 import com.scalora.bookingpro.entity.Booking;
 import com.scalora.bookingpro.entity.BookingStatus;
+import com.scalora.bookingpro.entity.Role;
+import com.scalora.bookingpro.entity.User;
 import com.scalora.bookingpro.exception.ApiException;
 import com.scalora.bookingpro.repository.BookingRepository;
 import com.scalora.bookingpro.repository.ServiceRepository;
@@ -70,6 +72,18 @@ public class BookingService {
     public BookingResponse updateStatus(Long id, BookingStatus status) {
         Booking booking = bookings.findById(id)
             .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Booking not found"));
+        booking.setStatus(status);
+        return toResponse(bookings.save(booking));
+    }
+
+    public BookingResponse updateStatus(Long id, BookingStatus status, User user) {
+        Booking booking = bookings.findById(id)
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Booking not found"));
+        Long businessId = booking.getService().getBusiness().getId();
+        boolean superAdmin = user.getRole() == Role.SUPER_ADMIN || user.getRole() == Role.ADMIN;
+        if (!superAdmin && (user.getBusiness() == null || !businessId.equals(user.getBusiness().getId()))) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "You can only manage your assigned business.");
+        }
         booking.setStatus(status);
         return toResponse(bookings.save(booking));
     }

@@ -3,7 +3,9 @@ package com.scalora.bookingpro.service;
 import com.scalora.bookingpro.dto.ServiceDtos.ServiceRequest;
 import com.scalora.bookingpro.dto.ServiceDtos.ServiceResponse;
 import com.scalora.bookingpro.entity.Business;
+import com.scalora.bookingpro.entity.Role;
 import com.scalora.bookingpro.entity.ServiceEntity;
+import com.scalora.bookingpro.entity.User;
 import com.scalora.bookingpro.exception.ApiException;
 import com.scalora.bookingpro.repository.BusinessRepository;
 import com.scalora.bookingpro.repository.ServiceRepository;
@@ -50,10 +52,25 @@ public class ServiceCatalogService {
         return toResponse(services.save(service));
     }
 
+    public ServiceResponse update(Long id, ServiceRequest request, User user) {
+        ServiceEntity service = services.findById(id)
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Service not found"));
+        requireAccess(service.getBusiness().getId(), user);
+        apply(service, request);
+        return toResponse(services.save(service));
+    }
+
     public void delete(Long id) {
         if (!services.existsById(id)) {
             throw new ApiException(HttpStatus.NOT_FOUND, "Service not found");
         }
+        services.deleteById(id);
+    }
+
+    public void delete(Long id, User user) {
+        ServiceEntity service = services.findById(id)
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Service not found"));
+        requireAccess(service.getBusiness().getId(), user);
         services.deleteById(id);
     }
 
@@ -71,5 +88,12 @@ public class ServiceCatalogService {
 
     private Business findBusiness(Long businessId) {
         return businesses.findById(businessId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Business not found"));
+    }
+
+    private void requireAccess(Long businessId, User user) {
+        if (user.getRole() == Role.SUPER_ADMIN || user.getRole() == Role.ADMIN) return;
+        if (user.getBusiness() == null || !businessId.equals(user.getBusiness().getId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "You can only manage your assigned business.");
+        }
     }
 }

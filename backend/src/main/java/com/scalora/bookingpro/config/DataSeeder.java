@@ -25,13 +25,17 @@ public class DataSeeder {
                 User admin = new User();
                 admin.setEmail("admin@scalora.local");
                 admin.setPasswordHash(encoder.encode("Admin123!"));
-                admin.setRole(Role.ADMIN);
+                admin.setRole(Role.SUPER_ADMIN);
                 users.save(admin);
             }
 
             Business edgard = businesses.findBySlug("edgard-akar").orElseGet(() -> businesses.save(business("Edgard Akar", "edgard-akar", "Premium appointments for personal services.")));
             Business marka = businesses.findBySlug("marka-store").orElseGet(() -> businesses.save(business("Marka Store", "marka-store", "Retail consultations and customer appointments.")));
             Business clinic = businesses.findBySlug("clinic-name").orElseGet(() -> businesses.save(business("Clinic Name", "clinic-name", "Modern clinic scheduling and patient visits.")));
+
+            seedBusinessAdmin(users, encoder, edgard, "admin@edgard-akar.local");
+            seedBusinessAdmin(users, encoder, marka, "admin@marka-store.local");
+            seedBusinessAdmin(users, encoder, clinic, "admin@clinic-name.local");
 
             if (services.count() == 0) {
                 services.save(service(edgard, "Signature Consultation", "A focused intake and tailored service plan.", 45, "65.00"));
@@ -79,6 +83,16 @@ public class DataSeeder {
         business.setTagline(tagline);
         business.setActive(true);
         return business;
+    }
+
+    private void seedBusinessAdmin(UserRepository users, PasswordEncoder encoder, Business business, String email) {
+        if (users.existsByEmail(email)) return;
+        User user = new User();
+        user.setEmail(email);
+        user.setPasswordHash(encoder.encode("Admin123!"));
+        user.setRole(Role.BUSINESS_ADMIN);
+        user.setBusiness(business);
+        users.save(user);
     }
 
     private ServiceEntity service(Business business, String name, String description, int minutes, String price) {

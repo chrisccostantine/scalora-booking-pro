@@ -9,7 +9,7 @@ public class ContactMessage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @ManyToOne(optional = false)
     @JoinColumn(name = "business_id")
     private Business business;
     @Column(nullable = false)
