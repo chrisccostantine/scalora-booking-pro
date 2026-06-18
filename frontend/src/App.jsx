@@ -46,8 +46,15 @@ const fallbackBusiness = {
 
 const statuses = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'];
 
+function businessSlugFromPath() {
+  const match = window.location.pathname.match(/^\/b\/([^/]+)/);
+  return match ? match[1] : '';
+}
+
 function App() {
   const [route, setRoute] = useState(window.location.hash || '#home');
+  const [profileSlug, setProfileSlug] = useState(businessSlugFromPath());
+  const [businesses, setBusinesses] = useState([]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [services, setServices] = useState(fallbackServices);
   const [testimonials, setTestimonials] = useState(fallbackTestimonials);
@@ -55,18 +62,32 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem('scalora_token'));
 
   useEffect(() => {
-    const onHashChange = () => setRoute(window.location.hash || '#home');
+    const onHashChange = () => {
+      setRoute(window.location.hash || '#home');
+      setProfileSlug(businessSlugFromPath());
+    };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
   useEffect(() => {
-    Promise.allSettled([api.getServices(), api.getTestimonials(), api.getBusinessInfo()]).then((results) => {
-      if (results[0].status === 'fulfilled') setServices(results[0].value);
-      if (results[1].status === 'fulfilled') setTestimonials(results[1].value);
-      if (results[2].status === 'fulfilled') setBusinessInfo({ ...fallbackBusiness, ...results[2].value });
+    const slug = profileSlug || 'edgard-akar';
+    Promise.allSettled([
+      api.getBusinesses(),
+      api.getBusinessServices(slug),
+      api.getBusinessTestimonials(slug),
+      api.getBusinessProfileInfo(slug),
+      api.getBusiness(slug),
+    ]).then((results) => {
+      if (results[0].status === 'fulfilled') setBusinesses(results[0].value);
+      if (results[1].status === 'fulfilled') setServices(results[1].value);
+      if (results[2].status === 'fulfilled') setTestimonials(results[2].value);
+      if (results[3].status === 'fulfilled') setBusinessInfo({ ...fallbackBusiness, ...results[3].value });
+      if (results[4].status === 'fulfilled') {
+        setBusinessInfo((current) => ({ ...current, businessName: current.businessName || results[4].value.name }));
+      }
     });
-  }, []);
+  }, [profileSlug]);
 
   const go = (hash) => {
     window.location.hash = hash;
@@ -89,6 +110,8 @@ function App() {
             setTestimonials={setTestimonials}
             businessInfo={businessInfo}
             setBusinessInfo={setBusinessInfo}
+            businesses={businesses}
+            setBusinesses={setBusinesses}
           />
         ) : (
           <AdminLogin setToken={setToken} />
@@ -98,6 +121,8 @@ function App() {
           businessInfo={businessInfo}
           services={services}
           testimonials={testimonials}
+          businesses={businesses}
+          profileSlug={profileSlug || 'edgard-akar'}
           onNavigate={go}
         />
       )}
@@ -161,7 +186,7 @@ function Header({ businessInfo, onNavigate, mobileOpen, setMobileOpen }) {
   );
 }
 
-function PublicSite({ businessInfo, services, testimonials, onNavigate }) {
+function PublicSite({ businessInfo, services, testimonials, businesses, profileSlug, onNavigate }) {
   return (
     <main>
       <section id="home" className="section min-h-[calc(100vh-72px)] bg-[linear-gradient(110deg,rgba(18,117,111,0.12),rgba(216,95,79,0.08)),url('https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1800&q=80')] bg-cover bg-center">
@@ -212,6 +237,7 @@ function PublicSite({ businessInfo, services, testimonials, onNavigate }) {
       </section>
 
       <ServicesSection services={services} />
+      <BusinessDirectory businesses={businesses} />
       <section id="booking" className="section bg-mist">
         <div className="section-inner grid gap-8 lg:grid-cols-[0.72fr_1fr]">
           <div>
@@ -223,8 +249,29 @@ function PublicSite({ businessInfo, services, testimonials, onNavigate }) {
         </div>
       </section>
       <TestimonialsSection testimonials={testimonials} />
-      <ContactSection businessInfo={businessInfo} />
+      <ContactSection businessInfo={businessInfo} profileSlug={profileSlug} />
     </main>
+  );
+}
+
+function BusinessDirectory({ businesses }) {
+  if (!businesses.length) return null;
+  return (
+    <section className="section bg-white">
+      <div className="section-inner">
+        <p className="text-sm font-bold uppercase text-coral">Scalora businesses</p>
+        <h2 className="mt-3 text-3xl font-bold">One platform, many business profiles.</h2>
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {businesses.map((business) => (
+            <a key={business.id} className="rounded-lg border border-line bg-[#fbfdfc] p-5 transition hover:border-teal" href={`/b/${business.slug}#home`}>
+              <p className="font-bold">{business.name}</p>
+              <p className="mt-2 text-sm text-graphite">scalorabooking.com/b/{business.slug}</p>
+              <p className="mt-3 text-sm leading-6 text-graphite">{business.tagline}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -363,14 +410,14 @@ function TestimonialsSection({ testimonials }) {
   );
 }
 
-function ContactSection({ businessInfo }) {
+function ContactSection({ businessInfo, profileSlug }) {
   const [sent, setSent] = useState('');
   const [form, setForm] = useState({ name: '', email: '', phoneNumber: '', message: '' });
 
   const submit = async (event) => {
     event.preventDefault();
     try {
-      await api.sendContact(form);
+      await api.sendContact(form, profileSlug);
       setSent('Message sent. The business owner can review it from the backend.');
       setForm({ name: '', email: '', phoneNumber: '', message: '' });
     } catch (error) {
@@ -467,10 +514,12 @@ function AdminLogin({ setToken }) {
   );
 }
 
-function AdminDashboard({ setToken, services, setServices, testimonials, setTestimonials, businessInfo, setBusinessInfo }) {
+function AdminDashboard({ setToken, services, setServices, testimonials, setTestimonials, businessInfo, setBusinessInfo, businesses, setBusinesses }) {
   const [bookings, setBookings] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
   const [staff, setStaff] = useState([]);
+  const [selectedBusinessId, setSelectedBusinessId] = useState('');
+  const [businessDraft, setBusinessDraft] = useState({ name: '', slug: '', tagline: '', active: true });
   const [filters, setFilters] = useState({ status: '', date: '', serviceId: '' });
   const [serviceDraft, setServiceDraft] = useState({ name: '', description: '', durationMinutes: 60, price: 80, active: true });
   const [staffDraft, setStaffDraft] = useState({ name: '', role: '', email: '', phoneNumber: '', active: true });
@@ -480,13 +529,21 @@ function AdminDashboard({ setToken, services, setServices, testimonials, setTest
   const [editingTestimonialId, setEditingTestimonialId] = useState(null);
 
   const loadAdminData = () => {
-    api.getBookings(filters).then(setBookings).catch(() => setBookings([]));
-    api.getBookings({}).then(setAllBookings).catch(() => setAllBookings([]));
-    api.getStaff().then(setStaff).catch(() => setStaff([]));
-    api.getAdminServices().then(setServices).catch(() => {});
+    api.getAdminBusinesses().then((items) => {
+      setBusinesses(items);
+      if (!selectedBusinessId && items[0]?.id) setSelectedBusinessId(String(items[0].id));
+    }).catch(() => {});
+    if (!selectedBusinessId) return;
+    const scope = { ...filters, businessId: selectedBusinessId };
+    api.getBookings(scope).then(setBookings).catch(() => setBookings([]));
+    api.getBookings({ businessId: selectedBusinessId }).then(setAllBookings).catch(() => setAllBookings([]));
+    api.getStaff(selectedBusinessId).then(setStaff).catch(() => setStaff([]));
+    api.getAdminServices(selectedBusinessId).then(setServices).catch(() => {});
+    api.getAdminTestimonials(selectedBusinessId).then(setTestimonials).catch(() => {});
+    api.getAdminBusinessInfo(selectedBusinessId).then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
   };
 
-  useEffect(loadAdminData, [filters.status, filters.date, filters.serviceId]);
+  useEffect(loadAdminData, [filters.status, filters.date, filters.serviceId, selectedBusinessId]);
 
   const stats = useMemo(() => ({
     total: allBookings.length,
@@ -503,14 +560,14 @@ function AdminDashboard({ setToken, services, setServices, testimonials, setTest
 
   const saveService = async () => {
     const payload = { ...serviceDraft, price: Number(serviceDraft.price), durationMinutes: Number(serviceDraft.durationMinutes) };
-    const saved = editingServiceId ? await api.updateService(editingServiceId, payload) : await api.createService(payload);
+    const saved = editingServiceId ? await api.updateService(editingServiceId, payload) : await api.createService(payload, selectedBusinessId);
     setServices((current) => editingServiceId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
     setEditingServiceId(null);
     setServiceDraft({ name: '', description: '', durationMinutes: 60, price: 80, active: true });
   };
 
   const saveStaff = async () => {
-    const saved = editingStaffId ? await api.updateStaff(editingStaffId, staffDraft) : await api.createStaff(staffDraft);
+    const saved = editingStaffId ? await api.updateStaff(editingStaffId, staffDraft) : await api.createStaff(staffDraft, selectedBusinessId);
     setStaff((current) => editingStaffId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
     setEditingStaffId(null);
     setStaffDraft({ name: '', role: '', email: '', phoneNumber: '', active: true });
@@ -518,10 +575,17 @@ function AdminDashboard({ setToken, services, setServices, testimonials, setTest
 
   const saveTestimonial = async () => {
     const payload = { ...testimonialDraft, rating: Number(testimonialDraft.rating) };
-    const saved = editingTestimonialId ? await api.updateTestimonial(editingTestimonialId, payload) : await api.createTestimonial(payload);
+    const saved = editingTestimonialId ? await api.updateTestimonial(editingTestimonialId, payload) : await api.createTestimonial(payload, selectedBusinessId);
     setTestimonials((current) => editingTestimonialId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
     setEditingTestimonialId(null);
     setTestimonialDraft({ customerName: '', content: '', rating: 5, active: true });
+  };
+
+  const saveBusiness = async () => {
+    const created = await api.createBusiness(businessDraft);
+    setBusinesses((current) => [...current, created]);
+    setSelectedBusinessId(String(created.id));
+    setBusinessDraft({ name: '', slug: '', tagline: '', active: true });
   };
 
   return (
@@ -540,6 +604,28 @@ function AdminDashboard({ setToken, services, setServices, testimonials, setTest
           <Stat icon={CalendarCheck} label="Confirmed" value={stats.confirmed} />
           <Stat icon={Check} label="Completed" value={stats.completed} />
         </div>
+
+        <section className="mt-8 rounded-lg border border-line bg-white p-5 shadow-sm">
+          <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
+            <div>
+              <label htmlFor="business-select">Managed business</label>
+              <select id="business-select" value={selectedBusinessId} onChange={(event) => {
+                setSelectedBusinessId(event.target.value);
+                setFilters({ status: '', date: '', serviceId: '' });
+              }}>
+                {businesses.map((business) => (
+                  <option key={business.id} value={business.id}>{business.name} - /b/{business.slug}</option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr_auto]">
+              <input placeholder="Business name" value={businessDraft.name} onChange={(event) => setBusinessDraft({ ...businessDraft, name: event.target.value })} />
+              <input placeholder="slug-name" value={businessDraft.slug} onChange={(event) => setBusinessDraft({ ...businessDraft, slug: event.target.value })} />
+              <input placeholder="Tagline" value={businessDraft.tagline} onChange={(event) => setBusinessDraft({ ...businessDraft, tagline: event.target.value })} />
+              <button className="btn-primary" onClick={saveBusiness}><Plus size={18} /> Add</button>
+            </div>
+          </div>
+        </section>
 
         <section className="mt-8 rounded-lg border border-line bg-white p-5 shadow-sm">
           <div className="mb-4 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -640,7 +726,7 @@ function AdminDashboard({ setToken, services, setServices, testimonials, setTest
               />
             ))}
           </div>
-          <button className="btn-primary mt-4" onClick={async () => setBusinessInfo(await api.updateBusinessInfo(businessInfo))}>
+          <button className="btn-primary mt-4" onClick={async () => setBusinessInfo(await api.updateBusinessInfo(businessInfo, selectedBusinessId))}>
             <Save size={18} /> Save Business Info
           </button>
         </section>

@@ -6,6 +6,9 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
 public class AdminDtos {
+    public record BusinessRequest(@NotBlank String name, @NotBlank String slug, String tagline, boolean active) {}
+    public record BusinessResponse(Long id, String name, String slug, String tagline, boolean active) {}
+
     public record StaffRequest(@NotBlank String name, @NotBlank String role, @Email String email, String phoneNumber, boolean active) {}
     public record StaffResponse(Long id, String name, String role, String email, String phoneNumber, boolean active) {}
 

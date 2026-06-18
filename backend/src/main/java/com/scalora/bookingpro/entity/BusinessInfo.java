@@ -6,7 +6,11 @@ import jakarta.persistence.*;
 @Table(name = "business_info")
 public class BusinessInfo {
     @Id
-    private Long id = 1L;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @OneToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "business_id", unique = true)
+    private Business business;
     private String businessName;
     private String logoUrl;
     private String phoneNumber;
@@ -20,6 +24,8 @@ public class BusinessInfo {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Business getBusiness() { return business; }
+    public void setBusiness(Business business) { this.business = business; }
     public String getBusinessName() { return businessName; }
     public void setBusinessName(String businessName) { this.businessName = businessName; }
     public String getLogoUrl() { return logoUrl; }

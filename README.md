@@ -2,6 +2,14 @@
 
 A reusable full-stack SaaS-style booking website template for salons, clinics, gyms, tutors, beauty centers, real estate agents, car washes, and other local service businesses.
 
+The platform supports multiple businesses under one Scalora domain. Each business gets a public profile URL with its own branding, services, staff, testimonials, booking form, contact details, and business information.
+
+Example public profile links:
+
+- `https://scalorabooking.com/b/edgard-akar`
+- `https://scalorabooking.com/b/marka-store`
+- `https://scalorabooking.com/b/clinic-name`
+
 ## Stack
 
 - Frontend: React, Vite, Tailwind CSS
@@ -55,6 +63,13 @@ The frontend runs on `http://localhost:5173`.
 - `DELETE /api/admin/services/{id}`
 - `GET /api/testimonials`
 - `POST /api/contact`
+- `GET /api/businesses`
+- `GET /api/businesses/{slug}`
+- `GET /api/businesses/{slug}/services`
+- `GET /api/businesses/{slug}/staff`
+- `POST /api/businesses/{slug}/contact`
+- `GET /api/admin/businesses`
+- `POST /api/admin/businesses`
 
 ## Environment
 

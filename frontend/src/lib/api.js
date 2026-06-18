@@ -26,26 +26,42 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  getBusinesses: () => request('/businesses'),
+  getBusiness: (slug) => request(`/businesses/${slug}`),
   getServices: () => request('/services'),
+  getBusinessServices: (slug) => request(`/businesses/${slug}/services`),
   createBooking: (payload) => request('/bookings', { method: 'POST', body: JSON.stringify(payload) }),
   getTestimonials: () => request('/testimonials'),
-  sendContact: (payload) => request('/contact', { method: 'POST', body: JSON.stringify(payload) }),
+  getBusinessTestimonials: (slug) => request(`/businesses/${slug}/testimonials`),
+  getBusinessStaff: (slug) => request(`/businesses/${slug}/staff`),
+  sendContact: (payload, slug) =>
+    request(slug ? `/businesses/${slug}/contact` : '/contact', { method: 'POST', body: JSON.stringify(payload) }),
   getBusinessInfo: () => request('/business-info'),
+  getBusinessProfileInfo: (slug) => request(`/businesses/${slug}/business-info`),
   login: (payload) => request('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
-  getAdminServices: () => request('/admin/services'),
+  getAdminBusinesses: () => request('/admin/businesses'),
+  createBusiness: (payload) => request('/admin/businesses', { method: 'POST', body: JSON.stringify(payload) }),
+  updateBusiness: (id, payload) => request(`/admin/businesses/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  getAdminServices: (businessId) => request(`/admin/services?${new URLSearchParams({ businessId })}`),
   getBookings: (params = {}) => request(`/admin/bookings?${new URLSearchParams(params)}`),
   updateBookingStatus: (id, status) =>
     request(`/admin/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-  createService: (payload) => request('/admin/services', { method: 'POST', body: JSON.stringify(payload) }),
+  createService: (payload, businessId) =>
+    request(`/admin/services?${new URLSearchParams({ businessId })}`, { method: 'POST', body: JSON.stringify(payload) }),
   updateService: (id, payload) => request(`/admin/services/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteService: (id) => request(`/admin/services/${id}`, { method: 'DELETE' }),
-  getStaff: () => request('/admin/staff'),
-  createStaff: (payload) => request('/admin/staff', { method: 'POST', body: JSON.stringify(payload) }),
+  getStaff: (businessId) => request(`/admin/staff?${new URLSearchParams({ businessId })}`),
+  createStaff: (payload, businessId) =>
+    request(`/admin/staff?${new URLSearchParams({ businessId })}`, { method: 'POST', body: JSON.stringify(payload) }),
   updateStaff: (id, payload) => request(`/admin/staff/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteStaff: (id) => request(`/admin/staff/${id}`, { method: 'DELETE' }),
-  createTestimonial: (payload) => request('/admin/testimonials', { method: 'POST', body: JSON.stringify(payload) }),
+  getAdminTestimonials: (businessId) => request(`/admin/testimonials?${new URLSearchParams({ businessId })}`),
+  createTestimonial: (payload, businessId) =>
+    request(`/admin/testimonials?${new URLSearchParams({ businessId })}`, { method: 'POST', body: JSON.stringify(payload) }),
   updateTestimonial: (id, payload) =>
     request(`/admin/testimonials/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteTestimonial: (id) => request(`/admin/testimonials/${id}`, { method: 'DELETE' }),
-  updateBusinessInfo: (payload) => request('/admin/business-info', { method: 'PUT', body: JSON.stringify(payload) }),
+  getAdminBusinessInfo: (businessId) => request(`/admin/business-info?${new URLSearchParams({ businessId })}`),
+  updateBusinessInfo: (payload, businessId) =>
+    request(`/admin/business-info?${new URLSearchParams({ businessId })}`, { method: 'PUT', body: JSON.stringify(payload) }),
 };

@@ -1,6 +1,8 @@
 package com.scalora.bookingpro.controller;
 
 import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoResponse;
+import com.scalora.bookingpro.dto.AdminDtos.BusinessResponse;
+import com.scalora.bookingpro.dto.AdminDtos.StaffResponse;
 import com.scalora.bookingpro.dto.AdminDtos.TestimonialResponse;
 import com.scalora.bookingpro.dto.BookingDtos.BookingRequest;
 import com.scalora.bookingpro.dto.BookingDtos.BookingResponse;
@@ -36,6 +38,26 @@ public class PublicController {
         return serviceCatalog.publicServices();
     }
 
+    @GetMapping("/businesses")
+    public List<BusinessResponse> businesses() {
+        return content.publicBusinesses();
+    }
+
+    @GetMapping("/businesses/{slug}")
+    public BusinessResponse business(@PathVariable String slug) {
+        return content.businessBySlug(slug);
+    }
+
+    @GetMapping("/businesses/{slug}/services")
+    public List<ServiceResponse> businessServices(@PathVariable String slug) {
+        return serviceCatalog.publicServices(slug);
+    }
+
+    @GetMapping("/businesses/{slug}/staff")
+    public List<StaffResponse> businessStaff(@PathVariable String slug) {
+        return content.publicStaff(slug);
+    }
+
     @PostMapping("/bookings")
     @ResponseStatus(HttpStatus.CREATED)
     public BookingResponse createBooking(@Valid @RequestBody BookingRequest request) {
@@ -44,17 +66,33 @@ public class PublicController {
 
     @GetMapping("/testimonials")
     public List<TestimonialResponse> testimonials() {
-        return content.publicTestimonials();
+        return content.publicTestimonials("edgard-akar");
+    }
+
+    @GetMapping("/businesses/{slug}/testimonials")
+    public List<TestimonialResponse> businessTestimonials(@PathVariable String slug) {
+        return content.publicTestimonials(slug);
     }
 
     @GetMapping("/business-info")
     public BusinessInfoResponse businessInfo() {
-        return content.getBusinessInfo();
+        return content.getBusinessInfo("edgard-akar");
+    }
+
+    @GetMapping("/businesses/{slug}/business-info")
+    public BusinessInfoResponse businessInfo(@PathVariable String slug) {
+        return content.getBusinessInfo(slug);
     }
 
     @PostMapping("/contact")
     @ResponseStatus(HttpStatus.CREATED)
     public ContactResponse contact(@Valid @RequestBody ContactRequest request) {
-        return this.contact.create(request);
+        return this.contact.create("edgard-akar", request);
+    }
+
+    @PostMapping("/businesses/{slug}/contact")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ContactResponse contact(@PathVariable String slug, @Valid @RequestBody ContactRequest request) {
+        return this.contact.create(slug, request);
     }
 }

@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TestimonialRepository extends JpaRepository<Testimonial, Long> {
     List<Testimonial> findByActiveTrue();
+    List<Testimonial> findByBusinessSlugAndActiveTrue(String slug);
+    List<Testimonial> findByBusinessIdOrderByCustomerNameAsc(Long businessId);
 }

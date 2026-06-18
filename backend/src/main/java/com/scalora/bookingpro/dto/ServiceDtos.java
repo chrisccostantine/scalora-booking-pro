@@ -16,6 +16,7 @@ public class ServiceDtos {
 
     public record ServiceResponse(
         Long id,
+        Long businessId,
         String name,
         String description,
         Integer durationMinutes,

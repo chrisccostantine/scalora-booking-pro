@@ -54,9 +54,10 @@ public class BookingService {
         return toResponse(bookings.save(booking));
     }
 
-    public List<BookingResponse> findAdmin(BookingStatus status, LocalDate date, Long serviceId) {
+    public List<BookingResponse> findAdmin(Long businessId, BookingStatus status, LocalDate date, Long serviceId) {
         Specification<Booking> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            if (businessId != null) predicates.add(cb.equal(root.get("service").get("business").get("id"), businessId));
             if (status != null) predicates.add(cb.equal(root.get("status"), status));
             if (date != null) predicates.add(cb.equal(root.get("appointmentDate"), date));
             if (serviceId != null) predicates.add(cb.equal(root.get("service").get("id"), serviceId));
@@ -77,6 +78,7 @@ public class BookingService {
         return new BookingResponse(
             booking.getId(),
             booking.getService().getId(),
+            booking.getService().getBusiness().getId(),
             booking.getService().getName(),
             booking.getAppointmentDate(),
             booking.getAppointmentTime(),

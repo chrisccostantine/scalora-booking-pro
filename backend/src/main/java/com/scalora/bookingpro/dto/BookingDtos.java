@@ -22,6 +22,7 @@ public class BookingDtos {
     public record BookingResponse(
         Long id,
         Long serviceId,
+        Long businessId,
         String serviceName,
         LocalDate appointmentDate,
         LocalTime appointmentTime,

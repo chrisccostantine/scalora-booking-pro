@@ -2,6 +2,8 @@ package com.scalora.bookingpro.controller;
 
 import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoRequest;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoResponse;
+import com.scalora.bookingpro.dto.AdminDtos.BusinessRequest;
+import com.scalora.bookingpro.dto.AdminDtos.BusinessResponse;
 import com.scalora.bookingpro.dto.AdminDtos.StaffRequest;
 import com.scalora.bookingpro.dto.AdminDtos.StaffResponse;
 import com.scalora.bookingpro.dto.AdminDtos.TestimonialRequest;
@@ -36,11 +38,12 @@ public class AdminController {
 
     @GetMapping("/bookings")
     public List<BookingResponse> bookings(
+        @RequestParam(required = false) Long businessId,
         @RequestParam(required = false) BookingStatus status,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
         @RequestParam(required = false) Long serviceId
     ) {
-        return bookings.findAdmin(status, date, serviceId);
+        return bookings.findAdmin(businessId, status, date, serviceId);
     }
 
     @PatchMapping("/bookings/{id}/status")
@@ -48,15 +51,31 @@ public class AdminController {
         return bookings.updateStatus(id, request.status());
     }
 
+    @GetMapping("/businesses")
+    public List<BusinessResponse> businesses() {
+        return content.businesses();
+    }
+
+    @PostMapping("/businesses")
+    @ResponseStatus(HttpStatus.CREATED)
+    public BusinessResponse createBusiness(@Valid @RequestBody BusinessRequest request) {
+        return content.createBusiness(request);
+    }
+
+    @PutMapping("/businesses/{id}")
+    public BusinessResponse updateBusiness(@PathVariable Long id, @Valid @RequestBody BusinessRequest request) {
+        return content.updateBusiness(id, request);
+    }
+
     @GetMapping("/services")
-    public List<ServiceResponse> services() {
-        return serviceCatalog.all();
+    public List<ServiceResponse> services(@RequestParam(required = false) Long businessId) {
+        return serviceCatalog.all(businessId);
     }
 
     @PostMapping("/services")
     @ResponseStatus(HttpStatus.CREATED)
-    public ServiceResponse createService(@Valid @RequestBody ServiceRequest request) {
-        return serviceCatalog.create(request);
+    public ServiceResponse createService(@RequestParam Long businessId, @Valid @RequestBody ServiceRequest request) {
+        return serviceCatalog.create(businessId, request);
     }
 
     @PutMapping("/services/{id}")
@@ -71,14 +90,14 @@ public class AdminController {
     }
 
     @GetMapping("/staff")
-    public List<StaffResponse> staff() {
-        return content.staff();
+    public List<StaffResponse> staff(@RequestParam Long businessId) {
+        return content.staff(businessId);
     }
 
     @PostMapping("/staff")
     @ResponseStatus(HttpStatus.CREATED)
-    public StaffResponse createStaff(@Valid @RequestBody StaffRequest request) {
-        return content.createStaff(request);
+    public StaffResponse createStaff(@RequestParam Long businessId, @Valid @RequestBody StaffRequest request) {
+        return content.createStaff(businessId, request);
     }
 
     @PutMapping("/staff/{id}")
@@ -92,10 +111,15 @@ public class AdminController {
         content.deleteStaff(id);
     }
 
+    @GetMapping("/testimonials")
+    public List<TestimonialResponse> testimonials(@RequestParam Long businessId) {
+        return content.testimonials(businessId);
+    }
+
     @PostMapping("/testimonials")
     @ResponseStatus(HttpStatus.CREATED)
-    public TestimonialResponse createTestimonial(@Valid @RequestBody TestimonialRequest request) {
-        return content.createTestimonial(request);
+    public TestimonialResponse createTestimonial(@RequestParam Long businessId, @Valid @RequestBody TestimonialRequest request) {
+        return content.createTestimonial(businessId, request);
     }
 
     @PutMapping("/testimonials/{id}")
@@ -109,8 +133,13 @@ public class AdminController {
         content.deleteTestimonial(id);
     }
 
+    @GetMapping("/business-info")
+    public BusinessInfoResponse businessInfo(@RequestParam Long businessId) {
+        return content.getBusinessInfo(businessId);
+    }
+
     @PutMapping("/business-info")
-    public BusinessInfoResponse updateBusinessInfo(@RequestBody BusinessInfoRequest request) {
-        return content.updateBusinessInfo(request);
+    public BusinessInfoResponse updateBusinessInfo(@RequestParam Long businessId, @RequestBody BusinessInfoRequest request) {
+        return content.updateBusinessInfo(businessId, request);
     }
 }

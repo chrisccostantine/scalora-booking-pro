@@ -8,6 +8,9 @@ public class Staff {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "business_id")
+    private Business business;
     @Column(nullable = false)
     private String name;
     @Column(nullable = false)
@@ -19,6 +22,8 @@ public class Staff {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Business getBusiness() { return business; }
+    public void setBusiness(Business business) { this.business = business; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getRole() { return role; }

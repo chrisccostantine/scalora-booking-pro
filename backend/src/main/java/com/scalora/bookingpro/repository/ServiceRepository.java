@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ServiceRepository extends JpaRepository<ServiceEntity, Long> {
     List<ServiceEntity> findByActiveTrueOrderByNameAsc();
+    List<ServiceEntity> findByBusinessIdOrderByNameAsc(Long businessId);
+    List<ServiceEntity> findByBusinessSlugAndActiveTrueOrderByNameAsc(String slug);
 }
