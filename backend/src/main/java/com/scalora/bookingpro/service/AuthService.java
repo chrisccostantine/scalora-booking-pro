@@ -7,6 +7,7 @@ import com.scalora.bookingpro.security.JwtService;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
@@ -20,6 +21,7 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
+    @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
         var user = users.findByEmail(request.email()).orElseThrow();

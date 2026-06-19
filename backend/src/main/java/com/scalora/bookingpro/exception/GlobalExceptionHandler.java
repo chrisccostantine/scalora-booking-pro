@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -33,7 +34,7 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, "This time slot is already booked.");
     }
 
-    @ExceptionHandler({BadCredentialsException.class, UsernameNotFoundException.class})
+    @ExceptionHandler({AuthenticationException.class, BadCredentialsException.class, UsernameNotFoundException.class})
     public ResponseEntity<Map<String, Object>> handleBadCredentials() {
         return build(HttpStatus.UNAUTHORIZED, "Invalid email or password.");
     }
