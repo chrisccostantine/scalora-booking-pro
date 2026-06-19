@@ -8,4 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface BusinessAvailabilityRepository extends JpaRepository<BusinessAvailability, Long> {
     List<BusinessAvailability> findByBusinessIdOrderByDayOfWeekAscStartTimeAsc(Long businessId);
     List<BusinessAvailability> findByBusinessIdAndDayOfWeekAndActiveTrueOrderByStartTimeAsc(Long businessId, DayOfWeek dayOfWeek);
+    void deleteByBusinessId(Long businessId);
 }

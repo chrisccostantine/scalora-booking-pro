@@ -82,6 +82,13 @@ public class AdminController {
         return content.updateBusiness(id, request);
     }
 
+    @DeleteMapping("/businesses/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteBusiness(@PathVariable Long id, Authentication authentication) {
+        access.requireSuperAdmin(authentication);
+        content.deleteBusiness(id);
+    }
+
     @GetMapping("/business-admins")
     public List<AdminUserResponse> businessAdmins(@RequestParam(required = false) Long businessId, Authentication authentication) {
         return content.businessAdmins(access.requiredBusinessScope(authentication, businessId));
@@ -102,17 +109,20 @@ public class AdminController {
     @PostMapping("/availability")
     @ResponseStatus(HttpStatus.CREATED)
     public AvailabilityResponse createAvailability(@RequestParam(required = false) Long businessId, @Valid @RequestBody AvailabilityRequest request, Authentication authentication) {
+        access.requireBusinessAdmin(authentication);
         return content.createAvailability(access.requiredBusinessScope(authentication, businessId), request);
     }
 
     @PutMapping("/availability/{id}")
     public AvailabilityResponse updateAvailability(@PathVariable Long id, @Valid @RequestBody AvailabilityRequest request, Authentication authentication) {
+        access.requireBusinessAdmin(authentication);
         return content.updateAvailability(id, request, access.currentUser(authentication));
     }
 
     @DeleteMapping("/availability/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAvailability(@PathVariable Long id, Authentication authentication) {
+        access.requireBusinessAdmin(authentication);
         content.deleteAvailability(id, access.currentUser(authentication));
     }
 

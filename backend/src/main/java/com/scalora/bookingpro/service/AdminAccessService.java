@@ -54,4 +54,10 @@ public class AdminAccessService {
             throw new ApiException(HttpStatus.FORBIDDEN, "Only the Scalora main admin can manage businesses.");
         }
     }
+
+    public void requireBusinessAdmin(Authentication authentication) {
+        if (isSuperAdmin(authentication)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Business operations are managed from the business admin account.");
+        }
+    }
 }

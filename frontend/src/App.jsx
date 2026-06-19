@@ -19,17 +19,8 @@ import {
 } from 'lucide-react';
 import { api } from './lib/api';
 
-const fallbackServices = [
-  { id: 1, name: 'Signature Consultation', description: 'A focused intake and tailored service plan.', durationMinutes: 45, price: 65, active: true },
-  { id: 2, name: 'Premium Service Session', description: 'The core appointment package for high-value clients.', durationMinutes: 60, price: 95, active: true },
-  { id: 3, name: 'Follow-up Appointment', description: 'Keep customers on track with a polished return visit.', durationMinutes: 30, price: 45, active: true },
-];
-
-const fallbackTestimonials = [
-  { id: 1, customerName: 'Maya R.', content: 'The booking experience felt effortless, and the reminder flow reduced no-shows immediately.', rating: 5 },
-  { id: 2, customerName: 'Daniel K.', content: 'Our team can finally manage appointments without spreadsheets or missed calls.', rating: 5 },
-  { id: 3, customerName: 'Nour A.', content: 'Clean, fast, and professional enough to use for multiple service brands.', rating: 5 },
-];
+const fallbackServices = [];
+const fallbackTestimonials = [];
 
 const fallbackBusiness = {
   businessName: 'Scalora Booking Pro',
@@ -77,13 +68,19 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const slug = profileSlug || 'edgard-akar';
+    if (!profileSlug) {
+      api.getBusinesses().then(setBusinesses).catch(() => setBusinesses([]));
+      setServices([]);
+      setTestimonials([]);
+      setBusinessInfo(fallbackBusiness);
+      return;
+    }
     Promise.allSettled([
       api.getBusinesses(),
-      api.getBusinessServices(slug),
-      api.getBusinessTestimonials(slug),
-      api.getBusinessProfileInfo(slug),
-      api.getBusiness(slug),
+      api.getBusinessServices(profileSlug),
+      api.getBusinessTestimonials(profileSlug),
+      api.getBusinessProfileInfo(profileSlug),
+      api.getBusiness(profileSlug),
     ]).then((results) => {
       if (results[0].status === 'fulfilled') setBusinesses(results[0].value);
       if (results[1].status === 'fulfilled') setServices(results[1].value);
@@ -104,7 +101,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#f7faf9] text-ink">
-      <Header businessInfo={businessInfo} onNavigate={go} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <Header businessInfo={businessInfo} onNavigate={go} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} isPlatform={!profileSlug} />
       {adminVisible ? (
         token ? (
           <AdminDashboard
@@ -130,7 +127,7 @@ function App() {
           services={services}
           testimonials={testimonials}
           businesses={businesses}
-          profileSlug={profileSlug || 'edgard-akar'}
+          profileSlug={profileSlug}
           onNavigate={go}
         />
       )}
@@ -147,8 +144,12 @@ function App() {
   );
 }
 
-function Header({ businessInfo, onNavigate, mobileOpen, setMobileOpen }) {
-  const links = [
+function Header({ businessInfo, onNavigate, mobileOpen, setMobileOpen, isPlatform }) {
+  const links = isPlatform ? [
+    ['#home', 'Home'],
+    ['#businesses', 'Businesses'],
+    ['#admin', 'Admin'],
+  ] : [
     ['#home', 'Home'],
     ['#about', 'About'],
     ['#services', 'Services'],
@@ -195,6 +196,10 @@ function Header({ businessInfo, onNavigate, mobileOpen, setMobileOpen }) {
 }
 
 function PublicSite({ businessInfo, services, testimonials, businesses, profileSlug, onNavigate }) {
+  if (!profileSlug) {
+    return <PlatformHome businesses={businesses} onNavigate={onNavigate} />;
+  }
+
   return (
     <main>
       <section
@@ -262,6 +267,41 @@ function PublicSite({ businessInfo, services, testimonials, businesses, profileS
       </section>
       <TestimonialsSection testimonials={testimonials} />
       <ContactSection businessInfo={businessInfo} profileSlug={profileSlug} />
+    </main>
+  );
+}
+
+function PlatformHome({ businesses, onNavigate }) {
+  return (
+    <main>
+      <section id="home" className="section bg-mist">
+        <div className="section-inner grid min-h-[68vh] items-center gap-10 lg:grid-cols-[1fr_0.8fr]">
+          <div>
+            <p className="mb-4 inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-teal">
+              <ShieldCheck size={16} /> Scalora Booking Platform
+            </p>
+            <h1 className="text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">Scalora Booking Pro</h1>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-graphite">
+              One main booking system for many businesses, each with its own profile, branding, services, availability, and dashboard.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <button className="btn-primary" onClick={() => onNavigate('#businesses')}>Browse Businesses</button>
+              <button className="btn-secondary" onClick={() => onNavigate('#admin')}>Admin Login</button>
+            </div>
+          </div>
+          <div className="rounded-lg border border-line bg-white p-6 shadow-soft">
+            <h2 className="text-xl font-bold">Platform overview</h2>
+            <div className="mt-5 grid gap-3">
+              {['Main Scalora admin manages business profiles', 'Each business manages its own operations', 'Customers book from real availability and slot capacity'].map((item) => (
+                <p key={item} className="flex items-center gap-3 text-sm text-graphite"><Check className="text-teal" size={18} /> {item}</p>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+      <section id="businesses">
+        <BusinessDirectory businesses={businesses} />
+      </section>
     </main>
   );
 }
@@ -553,11 +593,24 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
   const [bookings, setBookings] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
   const [staff, setStaff] = useState([]);
-  const [businessAdmins, setBusinessAdmins] = useState([]);
   const [availability, setAvailability] = useState([]);
   const [selectedBusinessId, setSelectedBusinessId] = useState('');
-  const [businessDraft, setBusinessDraft] = useState({ name: '', slug: '', tagline: '', active: true });
-  const [adminDraft, setAdminDraft] = useState({ email: '', password: '' });
+  const [businessDraft, setBusinessDraft] = useState({
+    name: '',
+    slug: '',
+    tagline: '',
+    active: true,
+    logoUrl: '',
+    coverImageUrl: '',
+    galleryImageUrls: '',
+    phoneNumber: '',
+    whatsappNumber: '',
+    address: '',
+    openingHours: '',
+    facebookUrl: '',
+    instagramUrl: '',
+    linkedinUrl: '',
+  });
   const [availabilityDraft, setAvailabilityDraft] = useState({ dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '17:00', capacity: 1, active: true });
   const [filters, setFilters] = useState({ status: '', date: '', serviceId: '' });
   const [serviceDraft, setServiceDraft] = useState({ name: '', description: '', durationMinutes: 60, price: 80, active: true });
@@ -574,6 +627,10 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
       if (!selectedBusinessId && items[0]?.id) setSelectedBusinessId(String(items[0].id));
     }).catch(() => {});
     if (!selectedBusinessId) return;
+    if (isSuperAdmin) {
+      api.getAdminBusinessInfo(selectedBusinessId).then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
+      return;
+    }
     const scope = { ...filters, businessId: selectedBusinessId };
     api.getBookings(scope).then(setBookings).catch(() => setBookings([]));
     api.getBookings({ businessId: selectedBusinessId }).then(setAllBookings).catch(() => setAllBookings([]));
@@ -581,11 +638,10 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
     api.getAdminServices(selectedBusinessId).then(setServices).catch(() => {});
     api.getAdminTestimonials(selectedBusinessId).then(setTestimonials).catch(() => {});
     api.getAdminBusinessInfo(selectedBusinessId).then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
-    api.getBusinessAdmins(selectedBusinessId).then(setBusinessAdmins).catch(() => setBusinessAdmins([]));
     api.getAvailability(selectedBusinessId).then(setAvailability).catch(() => setAvailability([]));
   };
 
-  useEffect(loadAdminData, [filters.status, filters.date, filters.serviceId, selectedBusinessId]);
+  useEffect(loadAdminData, [filters.status, filters.date, filters.serviceId, selectedBusinessId, isSuperAdmin]);
 
   const stats = useMemo(() => ({
     total: allBookings.length,
@@ -626,16 +682,65 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
   };
 
   const saveBusiness = async () => {
-    const created = await api.createBusiness(businessDraft);
+    const profile = {
+      businessName: businessDraft.name,
+      logoUrl: businessDraft.logoUrl,
+      coverImageUrl: businessDraft.coverImageUrl,
+      galleryImageUrls: businessDraft.galleryImageUrls,
+      phoneNumber: businessDraft.phoneNumber,
+      whatsappNumber: businessDraft.whatsappNumber,
+      address: businessDraft.address,
+      openingHours: businessDraft.openingHours,
+      facebookUrl: businessDraft.facebookUrl,
+      instagramUrl: businessDraft.instagramUrl,
+      linkedinUrl: businessDraft.linkedinUrl,
+    };
+    const created = await api.createBusiness({
+      name: businessDraft.name,
+      slug: businessDraft.slug,
+      tagline: businessDraft.tagline,
+      active: businessDraft.active,
+    });
+    await api.updateBusinessInfo(profile, created.id);
     setBusinesses((current) => [...current, created]);
     setSelectedBusinessId(String(created.id));
-    setBusinessDraft({ name: '', slug: '', tagline: '', active: true });
+    setBusinessDraft({
+      name: '',
+      slug: '',
+      tagline: '',
+      active: true,
+      logoUrl: '',
+      coverImageUrl: '',
+      galleryImageUrls: '',
+      phoneNumber: '',
+      whatsappNumber: '',
+      address: '',
+      openingHours: '',
+      facebookUrl: '',
+      instagramUrl: '',
+      linkedinUrl: '',
+    });
   };
 
-  const saveBusinessAdmin = async () => {
-    const created = await api.createBusinessAdmin({ ...adminDraft, businessId: Number(selectedBusinessId) });
-    setBusinessAdmins((current) => [...current, created]);
-    setAdminDraft({ email: '', password: '' });
+  const updateSelectedBusiness = async () => {
+    const selected = businesses.find((business) => String(business.id) === String(selectedBusinessId));
+    if (!selected) return;
+    const updated = await api.updateBusiness(selected.id, {
+      name: selected.name,
+      slug: selected.slug,
+      tagline: selected.tagline || '',
+      active: selected.active,
+    });
+    setBusinesses((current) => current.map((business) => (business.id === updated.id ? updated : business)));
+    setBusinessInfo(await api.updateBusinessInfo(businessInfo, selected.id));
+  };
+
+  const deleteSelectedBusiness = async () => {
+    if (!selectedBusinessId) return;
+    await api.deleteBusiness(selectedBusinessId);
+    setBusinesses((current) => current.filter((business) => String(business.id) !== String(selectedBusinessId)));
+    setSelectedBusinessId('');
+    setBusinessInfo(fallbackBusiness);
   };
 
   const saveAvailability = async () => {
@@ -654,12 +759,20 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
           </div>
           <button className="btn-secondary" onClick={logout}>Logout</button>
         </div>
-        <div className="grid gap-4 md:grid-cols-4">
-          <Stat icon={BarChart3} label="Total" value={stats.total} />
-          <Stat icon={Clock} label="Pending" value={stats.pending} />
-          <Stat icon={CalendarCheck} label="Confirmed" value={stats.confirmed} />
-          <Stat icon={Check} label="Completed" value={stats.completed} />
-        </div>
+        {isSuperAdmin ? (
+          <div className="grid gap-4 md:grid-cols-3">
+            <Stat icon={BarChart3} label="Businesses" value={businesses.length} />
+            <Stat icon={Check} label="Active" value={businesses.filter((business) => business.active).length} />
+            <Stat icon={Clock} label="Inactive" value={businesses.filter((business) => !business.active).length} />
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-4">
+            <Stat icon={BarChart3} label="Total" value={stats.total} />
+            <Stat icon={Clock} label="Pending" value={stats.pending} />
+            <Stat icon={CalendarCheck} label="Confirmed" value={stats.confirmed} />
+            <Stat icon={Check} label="Completed" value={stats.completed} />
+          </div>
+        )}
 
         <section className="mt-8 rounded-lg border border-line bg-white p-5 shadow-sm">
           <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
@@ -680,6 +793,17 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
                 <input placeholder="slug-name" value={businessDraft.slug} onChange={(event) => setBusinessDraft({ ...businessDraft, slug: event.target.value })} />
                 <input placeholder="Tagline" value={businessDraft.tagline} onChange={(event) => setBusinessDraft({ ...businessDraft, tagline: event.target.value })} />
                 <button className="btn-primary" onClick={saveBusiness}><Plus size={18} /> Add</button>
+                <select value={businessDraft.active ? 'true' : 'false'} onChange={(event) => setBusinessDraft({ ...businessDraft, active: event.target.value === 'true' })}>
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+                <input placeholder="Logo URL" value={businessDraft.logoUrl} onChange={(event) => setBusinessDraft({ ...businessDraft, logoUrl: event.target.value })} />
+                <input placeholder="Cover image URL" value={businessDraft.coverImageUrl} onChange={(event) => setBusinessDraft({ ...businessDraft, coverImageUrl: event.target.value })} />
+                <input placeholder="Gallery URLs, comma-separated" value={businessDraft.galleryImageUrls} onChange={(event) => setBusinessDraft({ ...businessDraft, galleryImageUrls: event.target.value })} />
+                <input placeholder="Phone" value={businessDraft.phoneNumber} onChange={(event) => setBusinessDraft({ ...businessDraft, phoneNumber: event.target.value })} />
+                <input placeholder="WhatsApp" value={businessDraft.whatsappNumber} onChange={(event) => setBusinessDraft({ ...businessDraft, whatsappNumber: event.target.value })} />
+                <input placeholder="Address" value={businessDraft.address} onChange={(event) => setBusinessDraft({ ...businessDraft, address: event.target.value })} />
+                <input placeholder="Opening hours" value={businessDraft.openingHours} onChange={(event) => setBusinessDraft({ ...businessDraft, openingHours: event.target.value })} />
               </div>
             ) : (
               <div className="rounded-md bg-mist px-4 py-3 text-sm text-graphite">
@@ -688,6 +812,59 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
             )}
           </div>
         </section>
+
+        {isSuperAdmin && (
+          <section className="mt-8 rounded-lg border border-line bg-white p-5 shadow-sm">
+            <h2 className="mb-4 text-xl font-bold">Selected Business Profile</h2>
+            {selectedBusinessId ? (
+              <>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {['name', 'slug', 'tagline'].map((key) => {
+                    const selected = businesses.find((business) => String(business.id) === String(selectedBusinessId)) || {};
+                    return (
+                      <input
+                        key={key}
+                        placeholder={key}
+                        value={selected[key] || ''}
+                        onChange={(event) => setBusinesses((current) => current.map((business) => (
+                          String(business.id) === String(selectedBusinessId) ? { ...business, [key]: event.target.value } : business
+                        )))}
+                      />
+                    );
+                  })}
+                  <select
+                    value={(businesses.find((business) => String(business.id) === String(selectedBusinessId))?.active ?? true) ? 'true' : 'false'}
+                    onChange={(event) => setBusinesses((current) => current.map((business) => (
+                      String(business.id) === String(selectedBusinessId) ? { ...business, active: event.target.value === 'true' } : business
+                    )))}
+                  >
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </select>
+                  {Object.keys(fallbackBusiness).map((key) => (
+                    <input
+                      key={key}
+                      placeholder={key}
+                      value={businessInfo[key] || ''}
+                      onChange={(event) => setBusinessInfo({ ...businessInfo, [key]: event.target.value })}
+                    />
+                  ))}
+                </div>
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  <button className="btn-primary" onClick={updateSelectedBusiness}><Save size={18} /> Save Business</button>
+                  <button className="btn-secondary border-coral text-coral" onClick={deleteSelectedBusiness}><Trash2 size={18} /> Delete Business</button>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-graphite">Create or select a business to edit its profile.</p>
+            )}
+          </section>
+        )}
+
+        {isSuperAdmin && <BusinessDirectory businesses={businesses} />}
+
+        {!isSuperAdmin && (
+          <>
 
         <section className="mt-8 rounded-lg border border-line bg-white p-5 shadow-sm">
           <div className="mb-4 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -726,14 +903,6 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
         </section>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-3">
-          {isSuperAdmin && (
-            <Manager title="Business Admins" icon={Users} onSave={saveBusinessAdmin}>
-              <input placeholder="Admin email" type="email" value={adminDraft.email} onChange={(event) => setAdminDraft({ ...adminDraft, email: event.target.value })} />
-              <input placeholder="Temporary password" type="password" value={adminDraft.password} onChange={(event) => setAdminDraft({ ...adminDraft, password: event.target.value })} />
-              <MiniList items={businessAdmins} label={(item) => `${item.email} - ${item.businessName || 'Business admin'}`} />
-            </Manager>
-          )}
-
           <Manager title="Availability" icon={CalendarCheck} onSave={saveAvailability}>
             <select value={availabilityDraft.dayOfWeek} onChange={(event) => setAvailabilityDraft({ ...availabilityDraft, dayOfWeek: event.target.value })}>
               {weekdays.map((day) => <option key={day} value={day}>{day}</option>)}
@@ -817,6 +986,8 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
             <Save size={18} /> Save Business Info
           </button>
         </section>
+          </>
+        )}
       </div>
     </main>
   );

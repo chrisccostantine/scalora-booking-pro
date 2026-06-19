@@ -19,6 +19,7 @@ import java.util.List;
 import java.time.LocalDate;
 import org.springframework.http.HttpStatus;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -79,7 +80,7 @@ public class PublicController {
 
     @GetMapping("/testimonials")
     public List<TestimonialResponse> testimonials() {
-        return content.publicTestimonials("edgard-akar");
+        return List.of();
     }
 
     @GetMapping("/businesses/{slug}/testimonials")
@@ -89,7 +90,20 @@ public class PublicController {
 
     @GetMapping("/business-info")
     public BusinessInfoResponse businessInfo() {
-        return content.getBusinessInfo("edgard-akar");
+        return new BusinessInfoResponse(
+            null,
+            "Scalora Booking Pro",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+        );
     }
 
     @GetMapping("/businesses/{slug}/business-info")
@@ -100,7 +114,7 @@ public class PublicController {
     @PostMapping("/contact")
     @ResponseStatus(HttpStatus.CREATED)
     public ContactResponse contact(@Valid @RequestBody ContactRequest request) {
-        return this.contact.create("edgard-akar", request);
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Use a business profile contact endpoint.");
     }
 
     @PostMapping("/businesses/{slug}/contact")

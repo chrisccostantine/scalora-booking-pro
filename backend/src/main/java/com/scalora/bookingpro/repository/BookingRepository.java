@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpecificationExecutor<Booking> {
     boolean existsByServiceIdAndAppointmentDateAndAppointmentTime(Long serviceId, LocalDate appointmentDate, LocalTime appointmentTime);
     long countByServiceBusinessIdAndAppointmentDateAndAppointmentTimeAndStatusNot(Long businessId, LocalDate appointmentDate, LocalTime appointmentTime, BookingStatus status);
+    void deleteByServiceBusinessId(Long businessId);
     long countByStatus(BookingStatus status);
     List<Booking> findTop5ByOrderByCreatedAtDesc();
 }

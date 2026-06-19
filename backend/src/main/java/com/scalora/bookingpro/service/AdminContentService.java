@@ -23,6 +23,9 @@ import com.scalora.bookingpro.exception.ApiException;
 import com.scalora.bookingpro.repository.BusinessInfoRepository;
 import com.scalora.bookingpro.repository.BusinessAvailabilityRepository;
 import com.scalora.bookingpro.repository.BusinessRepository;
+import com.scalora.bookingpro.repository.BookingRepository;
+import com.scalora.bookingpro.repository.ContactMessageRepository;
+import com.scalora.bookingpro.repository.ServiceRepository;
 import com.scalora.bookingpro.repository.StaffRepository;
 import com.scalora.bookingpro.repository.TestimonialRepository;
 import com.scalora.bookingpro.repository.UserRepository;
@@ -30,10 +33,14 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AdminContentService {
     private final BusinessRepository businesses;
+    private final BookingRepository bookings;
+    private final ContactMessageRepository contactMessages;
+    private final ServiceRepository services;
     private final StaffRepository staff;
     private final TestimonialRepository testimonials;
     private final BusinessInfoRepository businessInfo;
@@ -41,8 +48,11 @@ public class AdminContentService {
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
 
-    public AdminContentService(BusinessRepository businesses, StaffRepository staff, TestimonialRepository testimonials, BusinessInfoRepository businessInfo, BusinessAvailabilityRepository availability, UserRepository users, PasswordEncoder passwordEncoder) {
+    public AdminContentService(BusinessRepository businesses, BookingRepository bookings, ContactMessageRepository contactMessages, ServiceRepository services, StaffRepository staff, TestimonialRepository testimonials, BusinessInfoRepository businessInfo, BusinessAvailabilityRepository availability, UserRepository users, PasswordEncoder passwordEncoder) {
         this.businesses = businesses;
+        this.bookings = bookings;
+        this.contactMessages = contactMessages;
+        this.services = services;
         this.staff = staff;
         this.testimonials = testimonials;
         this.businessInfo = businessInfo;
@@ -87,6 +97,22 @@ public class AdminContentService {
         }
         apply(business, request);
         return businessResponse(businesses.save(business));
+    }
+
+    @Transactional
+    public void deleteBusiness(Long id) {
+        if (!businesses.existsById(id)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Business not found");
+        }
+        bookings.deleteByServiceBusinessId(id);
+        availability.deleteByBusinessId(id);
+        users.deleteByBusinessId(id);
+        staff.deleteByBusinessId(id);
+        testimonials.deleteByBusinessId(id);
+        businessInfo.deleteByBusinessId(id);
+        contactMessages.deleteByBusinessId(id);
+        services.deleteByBusinessId(id);
+        businesses.deleteById(id);
     }
 
     public List<AdminUserResponse> businessAdmins(Long businessId) {

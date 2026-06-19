@@ -47,6 +47,7 @@ export const api = {
   getAdminBusinesses: () => request('/admin/businesses'),
   createBusiness: (payload) => request('/admin/businesses', { method: 'POST', body: JSON.stringify(payload) }),
   updateBusiness: (id, payload) => request(`/admin/businesses/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteBusiness: (id) => request(`/admin/businesses/${id}`, { method: 'DELETE' }),
   getBusinessAdmins: (businessId) => request(`/admin/business-admins?${new URLSearchParams({ businessId })}`),
   createBusinessAdmin: (payload) => request('/admin/business-admins', { method: 'POST', body: JSON.stringify(payload) }),
   getAvailability: (businessId) => request(`/admin/availability?${new URLSearchParams({ businessId })}`),

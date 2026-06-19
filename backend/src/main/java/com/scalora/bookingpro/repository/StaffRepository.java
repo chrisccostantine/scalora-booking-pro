@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface StaffRepository extends JpaRepository<Staff, Long> {
     List<Staff> findByBusinessIdOrderByNameAsc(Long businessId);
     List<Staff> findByBusinessSlugAndActiveTrueOrderByNameAsc(String slug);
+    void deleteByBusinessId(Long businessId);
 }
