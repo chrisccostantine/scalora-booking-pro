@@ -91,6 +91,7 @@ public class AdminContentService {
         return businessResponse(findBusiness(id));
     }
 
+    @Transactional
     public BusinessResponse createBusiness(BusinessRequest request) {
         String slug = normalizeSlug(request.slug());
         if (businesses.existsBySlug(slug)) {
@@ -364,7 +365,9 @@ public class AdminContentService {
     private void createOwnerAdminIfRequested(Business business, BusinessRequest request) {
         if (request.ownerEmail() == null || request.ownerEmail().isBlank()) return;
         if (request.temporaryPassword() == null || request.temporaryPassword().isBlank()) return;
-        if (users.existsByEmail(request.ownerEmail())) return;
+        if (users.existsByEmail(request.ownerEmail())) {
+            throw new ApiException(HttpStatus.CONFLICT, "Business owner email is already in use.");
+        }
         User user = new User();
         user.setEmail(request.ownerEmail());
         user.setPasswordHash(passwordEncoder.encode(request.temporaryPassword()));

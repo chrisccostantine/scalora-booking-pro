@@ -715,6 +715,14 @@ function publicLink(slug) {
   return `/b/${slug || ''}`;
 }
 
+function slugify(value) {
+  return (value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+function adminLoginLink() {
+  return '/admin';
+}
+
 function imageList(value) {
   if (!value) return [];
   try {
@@ -770,7 +778,11 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
 
   const saveBusiness = async (event) => {
     event.preventDefault();
-    const payload = { ...draft, slug: draft.slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '') };
+    if (!editingBusiness && draft.ownerEmail && !draft.temporaryPassword) {
+      window.alert('Generate a temporary password before creating the business owner account.');
+      return;
+    }
+    const payload = { ...draft, slug: slugify(draft.slug || draft.name) };
     const saved = editingBusiness
       ? await api.updateSuperBusiness(editingBusiness.id, payload)
       : await api.createSuperBusiness(payload);
@@ -1101,14 +1113,26 @@ function AnalyticsRow({ label, value }) {
 
 function BusinessModal({ draft, setDraft, editing, onClose, onSubmit }) {
   const [tempPassword, setTempPassword] = useState(draft.temporaryPassword || '');
+  const [slugTouched, setSlugTouched] = useState(Boolean(draft.slug));
   const update = (field, value) => {
     setDraft((current) => ({
       ...current,
       [field]: value,
-      ...(field === 'name' && !current.slug ? { slug: value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') } : {}),
+      ...(field === 'name' && !slugTouched ? { slug: slugify(value) } : {}),
     }));
   };
-  const link = publicLink(draft.slug);
+  const updateSlug = (value) => {
+    setSlugTouched(true);
+    update('slug', slugify(value));
+  };
+  const link = publicLink(slugify(draft.slug || draft.name));
+  const loginLink = adminLoginLink();
+  const inviteText = [
+    `Business page: ${window.location.origin}${link}`,
+    `Owner dashboard: ${window.location.origin}${loginLink}`,
+    `Email: ${draft.ownerEmail || 'owner email'}`,
+    `Temporary password: ${tempPassword || draft.temporaryPassword || 'generate password first'}`,
+  ].join('\n');
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-ink/35 px-4 py-8">
       <form onSubmit={onSubmit} className="mx-auto max-w-5xl rounded-lg border border-line bg-white shadow-soft">
@@ -1122,11 +1146,27 @@ function BusinessModal({ draft, setDraft, editing, onClose, onSubmit }) {
         <div className="grid gap-5 p-5 lg:grid-cols-2">
           <div className="space-y-3">
             <input placeholder="Business Name" value={draft.name} onChange={(event) => update('name', event.target.value)} required />
-            <input placeholder="Slug" value={draft.slug} onChange={(event) => update('slug', event.target.value)} required />
+            <input placeholder="business-name" value={draft.slug} onChange={(event) => updateSlug(event.target.value)} required />
+            <div className="rounded-md border border-line bg-mist p-3 text-sm">
+              <p className="text-xs font-bold uppercase text-graphite">Public business page</p>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="break-all font-mono">{window.location.origin}{link}</span>
+                <button type="button" className="ml-auto text-teal" onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${link}`)}><Copy size={16} /></button>
+                <a className="text-teal" href={link} target="_blank" rel="noreferrer"><ExternalLink size={16} /></a>
+              </div>
+            </div>
+            <div className="rounded-md border border-line bg-white p-3 text-sm">
+              <p className="text-xs font-bold uppercase text-graphite">Business owner dashboard login</p>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="break-all font-mono">{window.location.origin}{loginLink}</span>
+                <button type="button" className="ml-auto text-teal" onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${loginLink}`)}><Copy size={16} /></button>
+              </div>
+              <p className="mt-2 text-xs text-graphite">The owner signs in here with their owner email and temporary password, then sees only their business dashboard.</p>
+            </div>
             <div className="flex items-center gap-2 rounded-md border border-line bg-mist px-3 py-2 text-sm">
-              <span className="font-mono">{link}</span>
-              <button type="button" className="ml-auto text-teal" onClick={() => navigator.clipboard?.writeText(link)}><Copy size={16} /></button>
-              <a className="text-teal" href={link} target="_blank" rel="noreferrer"><ExternalLink size={16} /></a>
+              <span className="truncate text-graphite">Copy owner invite</span>
+              <button type="button" className="ml-auto text-teal" onClick={() => navigator.clipboard?.writeText(inviteText)}><Copy size={16} /></button>
+              <button type="button" className="btn-secondary px-3 py-1.5" onClick={() => navigator.clipboard?.writeText(inviteText)}>Copy Details</button>
             </div>
             <input placeholder="Tagline" value={draft.tagline} onChange={(event) => update('tagline', event.target.value)} />
             <textarea placeholder="Description" rows="4" value={draft.description} onChange={(event) => update('description', event.target.value)} />
