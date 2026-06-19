@@ -101,10 +101,11 @@ public class AdminContentService {
         apply(business, request);
         Business saved = businesses.save(business);
         syncInfo(saved);
-        createOwnerAdminIfRequested(saved, request);
+        upsertOwnerAdminIfRequested(saved, request);
         return businessResponse(saved);
     }
 
+    @Transactional
     public BusinessResponse updateBusiness(Long id, BusinessRequest request) {
         Business business = findBusiness(id);
         String slug = normalizeSlug(request.slug());
@@ -112,7 +113,9 @@ public class AdminContentService {
             throw new ApiException(HttpStatus.CONFLICT, "Business slug is already in use.");
         }
         apply(business, request);
-        return businessResponse(businesses.save(business));
+        Business saved = businesses.save(business);
+        upsertOwnerAdminIfRequested(saved, request);
+        return businessResponse(saved);
     }
 
     public BusinessResponse updateBusinessStatus(Long id, boolean active) {
@@ -362,13 +365,13 @@ public class AdminContentService {
         syncInfo(business);
     }
 
-    private void createOwnerAdminIfRequested(Business business, BusinessRequest request) {
+    private void upsertOwnerAdminIfRequested(Business business, BusinessRequest request) {
         if (request.ownerEmail() == null || request.ownerEmail().isBlank()) return;
         if (request.temporaryPassword() == null || request.temporaryPassword().isBlank()) return;
-        if (users.existsByEmail(request.ownerEmail())) {
+        User user = users.findByEmail(request.ownerEmail()).orElseGet(User::new);
+        if (user.getId() != null && (user.getBusiness() == null || !business.getId().equals(user.getBusiness().getId()))) {
             throw new ApiException(HttpStatus.CONFLICT, "Business owner email is already in use.");
         }
-        User user = new User();
         user.setEmail(request.ownerEmail());
         user.setPasswordHash(passwordEncoder.encode(request.temporaryPassword()));
         user.setRole(Role.BUSINESS_ADMIN);
