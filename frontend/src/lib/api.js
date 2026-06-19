@@ -31,11 +31,14 @@ async function request(path, options = {}) {
 export const api = {
   getBusinesses: () => request('/businesses'),
   getBusiness: (slug) => request(`/businesses/${slug}`),
+  getPublicBusiness: (slug) => request(`/public/businesses/${slug}`),
   getServices: () => request('/services'),
   getBusinessServices: (slug) => request(`/businesses/${slug}/services`),
   getAvailabilitySlots: (slug, serviceId, date) =>
     request(`/businesses/${slug}/availability-slots?${new URLSearchParams({ serviceId, date })}`),
   createBooking: (payload) => request('/bookings', { method: 'POST', body: JSON.stringify(payload) }),
+  createPublicBusinessBooking: (slug, payload) =>
+    request(`/public/businesses/${slug}/bookings`, { method: 'POST', body: JSON.stringify(payload) }),
   getTestimonials: () => request('/testimonials'),
   getBusinessTestimonials: (slug) => request(`/businesses/${slug}/testimonials`),
   getBusinessStaff: (slug) => request(`/businesses/${slug}/staff`),
@@ -44,6 +47,13 @@ export const api = {
   getBusinessInfo: () => request('/business-info'),
   getBusinessProfileInfo: (slug) => request(`/businesses/${slug}/business-info`),
   login: (payload) => request('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
+  getSuperBusinesses: () => request('/super-admin/businesses'),
+  getSuperAnalytics: () => request('/super-admin/analytics'),
+  createSuperBusiness: (payload) => request('/super-admin/businesses', { method: 'POST', body: JSON.stringify(payload) }),
+  updateSuperBusiness: (id, payload) => request(`/super-admin/businesses/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  patchSuperBusinessStatus: (id, active) =>
+    request(`/super-admin/businesses/${id}/status`, { method: 'PATCH', body: JSON.stringify({ active }) }),
+  deleteSuperBusiness: (id) => request(`/super-admin/businesses/${id}`, { method: 'DELETE' }),
   getAdminBusinesses: () => request('/admin/businesses'),
   createBusiness: (payload) => request('/admin/businesses', { method: 'POST', body: JSON.stringify(payload) }),
   updateBusiness: (id, payload) => request(`/admin/businesses/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),

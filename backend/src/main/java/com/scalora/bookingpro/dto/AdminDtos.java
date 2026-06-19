@@ -6,11 +6,82 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalTime;
+import java.util.List;
 
 public class AdminDtos {
-    public record BusinessRequest(@NotBlank String name, @NotBlank String slug, String tagline, boolean active) {}
-    public record BusinessResponse(Long id, String name, String slug, String tagline, boolean active) {}
+    public record BusinessRequest(
+        @NotBlank String name,
+        @NotBlank String slug,
+        String tagline,
+        String description,
+        String logoUrl,
+        String coverImageUrl,
+        String galleryImageUrls,
+        String primaryColor,
+        String secondaryColor,
+        String accentColor,
+        String fontStyle,
+        String buttonStyle,
+        String phone,
+        String whatsappNumber,
+        @Email String email,
+        String address,
+        String googleMapsUrl,
+        String openingHours,
+        String instagramUrl,
+        String facebookUrl,
+        String tiktokUrl,
+        String ownerName,
+        @Email String ownerEmail,
+        String temporaryPassword,
+        boolean active
+    ) {}
+
+    public record BusinessResponse(
+        Long id,
+        String name,
+        String slug,
+        String tagline,
+        String description,
+        String logoUrl,
+        String coverImageUrl,
+        String galleryImageUrls,
+        String primaryColor,
+        String secondaryColor,
+        String accentColor,
+        String fontStyle,
+        String buttonStyle,
+        String phone,
+        String phoneNumber,
+        String whatsappNumber,
+        String email,
+        String address,
+        String googleMapsUrl,
+        String openingHours,
+        String instagramUrl,
+        String facebookUrl,
+        String tiktokUrl,
+        String ownerName,
+        String ownerEmail,
+        String status,
+        boolean active,
+        Instant createdAt,
+        Instant updatedAt
+    ) {}
+
+    public record PlatformAnalyticsResponse(
+        long totalBusinesses,
+        long activeBusinesses,
+        long inactiveBusinesses,
+        long bookingsToday,
+        long pendingBookings,
+        long confirmedBookings,
+        long completedBookings,
+        long newBusinessesThisMonth,
+        List<String> mostActiveBusinesses
+    ) {}
 
     public record AdminUserRequest(@Email @NotBlank String email, @NotBlank String password, @NotNull Long businessId) {}
     public record AdminUserResponse(Long id, String email, String role, Long businessId, String businessName) {}

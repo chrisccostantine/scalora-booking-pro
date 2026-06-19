@@ -1,19 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
+  Building2,
   CalendarCheck,
   Check,
   Clock,
+  Copy,
   Edit3,
+  ExternalLink,
+  ImagePlus,
+  LogOut,
   MapPin,
   Menu,
   MessageCircle,
   Phone,
   Plus,
   Save,
+  Search,
+  Settings,
   ShieldCheck,
   Star,
   Trash2,
+  Upload,
   Users,
   X,
 } from 'lucide-react';
@@ -24,16 +32,27 @@ const fallbackTestimonials = [];
 
 const fallbackBusiness = {
   businessName: 'Scalora Booking Pro',
+  name: 'Scalora Booking Pro',
+  tagline: 'Premium appointments for modern service businesses.',
+  description: '',
   phoneNumber: '+1 555 0199',
+  phone: '+1 555 0199',
   whatsappNumber: '+15550199',
+  email: '',
   address: 'Downtown Business District',
+  googleMapsUrl: '',
   openingHours: 'Mon - Sat, 9:00 AM - 7:00 PM',
   logoUrl: '',
   coverImageUrl: '',
   galleryImageUrls: '',
+  primaryColor: '#12756f',
+  secondaryColor: '#eef6f4',
+  accentColor: '#d85f4f',
+  fontStyle: 'Inter',
+  buttonStyle: 'rounded',
   facebookUrl: 'https://facebook.com',
   instagramUrl: 'https://instagram.com',
-  linkedinUrl: 'https://linkedin.com',
+  tiktokUrl: '',
 };
 
 const statuses = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'];
@@ -50,8 +69,10 @@ function App() {
   const [businesses, setBusinesses] = useState([]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [services, setServices] = useState(fallbackServices);
+  const [publicStaff, setPublicStaff] = useState([]);
   const [testimonials, setTestimonials] = useState(fallbackTestimonials);
   const [businessInfo, setBusinessInfo] = useState(fallbackBusiness);
+  const [businessUnavailable, setBusinessUnavailable] = useState(false);
   const [token, setToken] = useState(localStorage.getItem('scalora_token'));
   const [adminUser, setAdminUser] = useState(() => {
     const stored = localStorage.getItem('scalora_admin');
@@ -71,23 +92,34 @@ function App() {
     if (!profileSlug) {
       api.getBusinesses().then(setBusinesses).catch(() => setBusinesses([]));
       setServices([]);
+      setPublicStaff([]);
       setTestimonials([]);
       setBusinessInfo(fallbackBusiness);
+      setBusinessUnavailable(false);
       return;
     }
     Promise.allSettled([
       api.getBusinesses(),
       api.getBusinessServices(profileSlug),
+      api.getBusinessStaff(profileSlug),
       api.getBusinessTestimonials(profileSlug),
-      api.getBusinessProfileInfo(profileSlug),
-      api.getBusiness(profileSlug),
+      api.getPublicBusiness(profileSlug),
     ]).then((results) => {
       if (results[0].status === 'fulfilled') setBusinesses(results[0].value);
       if (results[1].status === 'fulfilled') setServices(results[1].value);
-      if (results[2].status === 'fulfilled') setTestimonials(results[2].value);
-      if (results[3].status === 'fulfilled') setBusinessInfo({ ...fallbackBusiness, ...results[3].value });
+      if (results[2].status === 'fulfilled') setPublicStaff(results[2].value);
+      if (results[3].status === 'fulfilled') setTestimonials(results[3].value);
       if (results[4].status === 'fulfilled') {
-        setBusinessInfo((current) => ({ ...current, businessName: current.businessName || results[4].value.name }));
+        const profile = results[4].value;
+        setBusinessUnavailable(false);
+        setBusinessInfo({
+          ...fallbackBusiness,
+          ...profile,
+          businessName: profile.name,
+          phoneNumber: profile.phone || profile.phoneNumber,
+        });
+      } else {
+        setBusinessUnavailable(true);
       }
     });
   }, [profileSlug]);
@@ -125,9 +157,11 @@ function App() {
         <PublicSite
           businessInfo={businessInfo}
           services={services}
+          staff={publicStaff}
           testimonials={testimonials}
           businesses={businesses}
           profileSlug={profileSlug}
+          businessUnavailable={businessUnavailable}
           onNavigate={go}
         />
       )}
@@ -195,33 +229,50 @@ function Header({ businessInfo, onNavigate, mobileOpen, setMobileOpen, isPlatfor
   );
 }
 
-function PublicSite({ businessInfo, services, testimonials, businesses, profileSlug, onNavigate }) {
+function PublicSite({ businessInfo, services, staff, testimonials, businesses, profileSlug, businessUnavailable, onNavigate }) {
   if (!profileSlug) {
     return <PlatformHome businesses={businesses} onNavigate={onNavigate} />;
   }
 
+  if (businessUnavailable) {
+    return (
+      <main className="section min-h-[calc(100vh-72px)] bg-mist">
+        <div className="section-inner max-w-2xl rounded-lg border border-line bg-white p-8 text-center shadow-soft">
+          <h1 className="text-3xl font-bold">Business unavailable</h1>
+          <p className="mt-3 text-graphite">This business profile is inactive or no longer available for public booking.</p>
+          <a className="btn-primary mt-6" href="/">Back to Scalora Booking</a>
+        </div>
+      </main>
+    );
+  }
+
+  const primary = businessInfo.primaryColor || '#12756f';
+  const accent = businessInfo.accentColor || '#d85f4f';
+  const gallery = (businessInfo.galleryImageUrls || '').split(',').map((item) => item.trim()).filter(Boolean);
+
   return (
-    <main>
+    <main style={{ '--brand-primary': primary, '--brand-accent': accent, fontFamily: businessInfo.fontStyle || 'Inter, sans-serif' }}>
       <section
         id="home"
         className="section min-h-[calc(100vh-72px)] bg-cover bg-center"
         style={{
-          backgroundImage: `linear-gradient(110deg,rgba(18,117,111,0.12),rgba(216,95,79,0.08)),url('${businessInfo.coverImageUrl || 'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1800&q=80'}')`,
+          backgroundImage: `linear-gradient(110deg,rgba(255,255,255,0.88),rgba(255,255,255,0.62)),url('${businessInfo.coverImageUrl || 'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1800&q=80'}')`,
         }}
       >
         <div className="section-inner grid min-h-[72vh] items-center gap-10 lg:grid-cols-[1.08fr_0.92fr]">
           <div className="max-w-3xl">
-            <p className="mb-4 inline-flex items-center gap-2 rounded-md bg-white/90 px-3 py-1.5 text-sm font-semibold text-teal">
-              <ShieldCheck size={16} /> Sell-ready booking website template
+            {businessInfo.logoUrl && <img className="mb-5 h-20 w-20 rounded-lg object-cover shadow-soft" src={businessInfo.logoUrl} alt={`${businessInfo.businessName} logo`} />}
+            <p className="mb-4 inline-flex items-center gap-2 rounded-md bg-white/90 px-3 py-1.5 text-sm font-semibold" style={{ color: primary }}>
+              <ShieldCheck size={16} /> {businessInfo.tagline || 'Online booking available'}
             </p>
             <h1 className="text-4xl font-bold leading-tight text-ink sm:text-5xl lg:text-6xl">
-              Scalora Booking Pro
+              {businessInfo.businessName || businessInfo.name}
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-graphite">
-              A premium appointment website and admin system for service businesses that need online bookings, customer trust, and clean operations from day one.
+              {businessInfo.description || 'View services, meet the team, and reserve an appointment online from this business profile.'}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <button className="btn-primary" onClick={() => onNavigate('#booking')}>
+              <button className="btn-primary" style={{ backgroundColor: primary }} onClick={() => onNavigate('#booking')}>
                 <CalendarCheck size={18} /> Book an Appointment
               </button>
               <button className="btn-secondary" onClick={() => onNavigate('#services')}>View Services</button>
@@ -234,17 +285,18 @@ function PublicSite({ businessInfo, services, testimonials, businesses, profileS
       <section id="about" className="section bg-white">
         <div className="section-inner grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
-            <p className="text-sm font-bold uppercase text-coral">Built for local service brands</p>
-            <h2 className="mt-3 text-3xl font-bold">A reusable system for real appointment operations.</h2>
+            <p className="text-sm font-bold uppercase" style={{ color: accent }}>About</p>
+            <h2 className="mt-3 text-3xl font-bold">{businessInfo.businessName || businessInfo.name}</h2>
+            <p className="mt-4 text-graphite">{businessInfo.description || businessInfo.tagline}</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             {[
-              ['Fast setup', 'Launch for salons, clinics, tutors, gyms, and other providers.'],
-              ['Admin control', 'Manage bookings, services, staff, testimonials, and business info.'],
-              ['Customer-ready', 'Mobile booking, maps, contact, testimonials, and WhatsApp.'],
+              ['Services', 'Browse available appointment services.'],
+              ['Availability', 'Book from open time slots and capacity.'],
+              ['Contact', 'Reach the business by phone, WhatsApp, or the contact form.'],
             ].map(([title, copy]) => (
               <article key={title} className="rounded-lg border border-line bg-mist/50 p-5">
-                <Check className="mb-4 text-teal" />
+                <Check className="mb-4" style={{ color: primary }} />
                 <h3 className="font-bold">{title}</h3>
                 <p className="mt-2 text-sm leading-6 text-graphite">{copy}</p>
               </article>
@@ -254,6 +306,19 @@ function PublicSite({ businessInfo, services, testimonials, businesses, profileS
       </section>
 
       <ServicesSection services={services} />
+      <StaffSection staff={staff} />
+      {gallery.length > 0 && (
+        <section className="section bg-white">
+          <div className="section-inner">
+            <p className="text-sm font-bold uppercase" style={{ color: accent }}>Gallery</p>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              {gallery.map((image) => (
+                <img key={image} className="h-56 w-full rounded-lg object-cover" src={image} alt={`${businessInfo.businessName} gallery`} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
       <BusinessDirectory businesses={businesses} />
       <section id="booking" className="section bg-mist">
         <div className="section-inner grid gap-8 lg:grid-cols-[0.72fr_1fr]">
@@ -358,6 +423,30 @@ function ServicesSection({ services }) {
   );
 }
 
+function StaffSection({ staff }) {
+  if (!staff?.length) return null;
+  return (
+    <section className="section bg-white">
+      <div className="section-inner">
+        <p className="text-sm font-bold uppercase text-coral">Staff</p>
+        <h2 className="mt-3 text-3xl font-bold">Meet the team.</h2>
+        <div className="mt-8 grid gap-5 md:grid-cols-3">
+          {staff.filter((member) => member.active).map((member) => (
+            <article key={member.id} className="rounded-lg border border-line bg-[#fbfdfc] p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-mist font-bold text-teal">
+                {member.name?.slice(0, 2)?.toUpperCase()}
+              </div>
+              <h3 className="text-xl font-bold">{member.name}</h3>
+              <p className="mt-2 text-sm text-graphite">{member.role}</p>
+              {member.phoneNumber && <p className="mt-3 text-sm text-graphite">{member.phoneNumber}</p>}
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function BookingForm({ services, profileSlug, compact = false }) {
   const [form, setForm] = useState({
     serviceId: services[0]?.id || '',
@@ -398,7 +487,12 @@ function BookingForm({ services, profileSlug, compact = false }) {
     setBusy(true);
     setMessage('');
     try {
-      await api.createBooking({ ...form, serviceId: Number(form.serviceId) });
+      const payload = { ...form, serviceId: Number(form.serviceId) };
+      if (profileSlug) {
+        await api.createPublicBusinessBooking(profileSlug, payload);
+      } else {
+        await api.createBooking(payload);
+      }
       setMessage('Booking request received. We will confirm it shortly.');
       setForm((current) => ({ ...current, customerName: '', phoneNumber: '', email: '', notes: '' }));
     } catch (error) {
@@ -513,7 +607,7 @@ function ContactSection({ businessInfo, profileSlug }) {
             title="Business location"
             className="mt-8 h-64 w-full rounded-lg border border-line"
             loading="lazy"
-            src={`https://www.google.com/maps?q=${encodeURIComponent(businessInfo.address)}&output=embed`}
+            src={businessInfo.googleMapsUrl || `https://www.google.com/maps?q=${encodeURIComponent(businessInfo.address || '')}&output=embed`}
           />
         </div>
         <form onSubmit={submit} className="rounded-lg border border-line bg-white p-6 shadow-soft">
@@ -586,6 +680,415 @@ function AdminLogin({ setToken, setAdminUser }) {
         {error && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       </form>
     </main>
+  );
+}
+
+const emptyBusinessDraft = {
+  name: '',
+  slug: '',
+  tagline: '',
+  description: '',
+  logoUrl: '',
+  coverImageUrl: '',
+  galleryImageUrls: '',
+  primaryColor: '#12756f',
+  secondaryColor: '#eef6f4',
+  accentColor: '#d85f4f',
+  fontStyle: 'Inter',
+  buttonStyle: 'rounded',
+  phone: '',
+  whatsappNumber: '',
+  email: '',
+  address: '',
+  googleMapsUrl: '',
+  openingHours: '',
+  instagramUrl: '',
+  facebookUrl: '',
+  tiktokUrl: '',
+  ownerName: '',
+  ownerEmail: '',
+  temporaryPassword: '',
+  active: true,
+};
+
+function publicLink(slug) {
+  return `/b/${slug || ''}`;
+}
+
+function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, setBusinesses }) {
+  const [activeNav, setActiveNav] = useState('Businesses');
+  const [analytics, setAnalytics] = useState(null);
+  const [selectedBusinessId, setSelectedBusinessId] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [dateFilter, setDateFilter] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingBusiness, setEditingBusiness] = useState(null);
+  const [draft, setDraft] = useState(emptyBusinessDraft);
+
+  const selectedBusiness = businesses.find((business) => String(business.id) === String(selectedBusinessId)) || businesses[0];
+
+  const loadPlatform = () => {
+    api.getSuperBusinesses().then((items) => {
+      setBusinesses(items);
+      if (!selectedBusinessId && items[0]?.id) setSelectedBusinessId(String(items[0].id));
+    }).catch(() => {});
+    api.getSuperAnalytics().then(setAnalytics).catch(() => setAnalytics(null));
+  };
+
+  useEffect(loadPlatform, []);
+
+  const logout = () => {
+    localStorage.removeItem('scalora_token');
+    localStorage.removeItem('scalora_admin');
+    setToken(null);
+    setAdminUser(null);
+    window.location.hash = '#admin';
+  };
+
+  const openCreate = () => {
+    setEditingBusiness(null);
+    setDraft(emptyBusinessDraft);
+    setModalOpen(true);
+  };
+
+  const openEdit = (business) => {
+    setEditingBusiness(business);
+    setDraft({ ...emptyBusinessDraft, ...business, phone: business.phone || business.phoneNumber || '' });
+    setModalOpen(true);
+  };
+
+  const saveBusiness = async (event) => {
+    event.preventDefault();
+    const payload = { ...draft, slug: draft.slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '') };
+    const saved = editingBusiness
+      ? await api.updateSuperBusiness(editingBusiness.id, payload)
+      : await api.createSuperBusiness(payload);
+    setBusinesses((current) => editingBusiness
+      ? current.map((business) => (business.id === saved.id ? saved : business))
+      : [...current, saved]);
+    setSelectedBusinessId(String(saved.id));
+    setModalOpen(false);
+    api.getSuperAnalytics().then(setAnalytics).catch(() => {});
+  };
+
+  const toggleStatus = async (business) => {
+    const updated = await api.patchSuperBusinessStatus(business.id, !business.active);
+    setBusinesses((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    api.getSuperAnalytics().then(setAnalytics).catch(() => {});
+  };
+
+  const deleteBusiness = async (business) => {
+    if (!window.confirm(`Delete ${business.name}? This cannot be undone.`)) return;
+    await api.deleteSuperBusiness(business.id);
+    setBusinesses((current) => current.filter((item) => item.id !== business.id));
+    if (String(selectedBusinessId) === String(business.id)) setSelectedBusinessId('');
+    api.getSuperAnalytics().then(setAnalytics).catch(() => {});
+  };
+
+  const filteredBusinesses = businesses.filter((business) => {
+    const query = search.toLowerCase();
+    const matchesQuery = !query || business.name?.toLowerCase().includes(query) || business.slug?.toLowerCase().includes(query);
+    const matchesStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? business.active : !business.active);
+    const matchesDate = !dateFilter || business.createdAt?.startsWith(dateFilter);
+    return matchesQuery && matchesStatus && matchesDate;
+  });
+
+  const metrics = [
+    ['Total Businesses', analytics?.totalBusinesses ?? businesses.length, Building2],
+    ['Active Businesses', analytics?.activeBusinesses ?? businesses.filter((business) => business.active).length, Check],
+    ['Inactive Businesses', analytics?.inactiveBusinesses ?? businesses.filter((business) => !business.active).length, Clock],
+    ['Bookings Today', analytics?.bookingsToday ?? 0, CalendarCheck],
+    ['Pending Bookings', analytics?.pendingBookings ?? 0, Clock],
+    ['New Businesses This Month', analytics?.newBusinessesThisMonth ?? 0, Plus],
+  ];
+
+  const navItems = [
+    ['Dashboard', BarChart3],
+    ['Businesses', Building2],
+    ['Bookings', CalendarCheck],
+    ['Users', Users],
+    ['Analytics', BarChart3],
+    ['Platform Settings', Settings],
+  ];
+
+  return (
+    <main className="min-h-[calc(100vh-72px)] bg-[#f6f7f8]">
+      <div className="grid min-h-[calc(100vh-72px)] lg:grid-cols-[260px_1fr]">
+        <aside className="border-r border-line bg-white px-4 py-6">
+          <div className="mb-8 px-2">
+            <p className="text-xs font-bold uppercase tracking-wide text-graphite">Scalora</p>
+            <h1 className="mt-1 text-xl font-bold">Super Admin</h1>
+            <p className="mt-1 truncate text-sm text-graphite">{adminUser?.email}</p>
+          </div>
+          <nav className="space-y-1">
+            {navItems.map(([label, Icon]) => (
+              <button
+                key={label}
+                className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-semibold ${activeNav === label ? 'bg-mist text-teal' : 'text-graphite hover:bg-[#f4f6f6] hover:text-ink'}`}
+                onClick={() => setActiveNav(label)}
+              >
+                <Icon size={18} /> {label}
+              </button>
+            ))}
+            <button className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-semibold text-graphite hover:bg-[#f4f6f6] hover:text-ink" onClick={logout}>
+              <LogOut size={18} /> Logout
+            </button>
+          </nav>
+        </aside>
+
+        <section className="px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+            <div>
+              <p className="text-sm font-bold uppercase text-coral">Multi-tenant platform</p>
+              <h2 className="mt-1 text-3xl font-bold">Scalora Booking Pro</h2>
+              <p className="mt-1 text-sm text-graphite">Manage business profiles, public links, branding, and platform health.</p>
+            </div>
+            <button className="btn-primary" onClick={openCreate}><Plus size={18} /> Add Business</button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+            {metrics.map(([label, value, Icon]) => (
+              <article key={label} className="rounded-lg border border-line bg-white p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-graphite">{label}</span>
+                  <Icon className="text-teal" size={18} />
+                </div>
+                <p className="text-2xl font-bold">{value}</p>
+              </article>
+            ))}
+          </div>
+
+          <section className="mt-6 rounded-lg border border-line bg-white shadow-sm">
+            <div className="border-b border-line p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <h3 className="text-lg font-bold">Businesses</h3>
+                <div className="grid gap-3 sm:grid-cols-[1.3fr_150px_160px] lg:w-[680px]">
+                  <label className="relative block">
+                    <Search className="pointer-events-none absolute left-3 top-2.5 text-graphite" size={17} />
+                    <input className="pl-9" placeholder="Search name or slug" value={search} onChange={(event) => setSearch(event.target.value)} />
+                  </label>
+                  <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                    <option value="ALL">All</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                  <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} />
+                </div>
+              </div>
+            </div>
+            <ResponsiveTable
+              columns={['Logo', 'Business Name', 'Slug', 'Status', 'Created Date', 'Public Link', 'Actions']}
+              rows={filteredBusinesses.map((business) => [
+                business.logoUrl ? <img className="h-10 w-10 rounded-md object-cover" src={business.logoUrl} alt="" /> : <span className="flex h-10 w-10 items-center justify-center rounded-md bg-mist text-xs font-bold text-teal">{business.name?.slice(0, 2)?.toUpperCase()}</span>,
+                <button className="text-left font-semibold hover:text-teal" onClick={() => setSelectedBusinessId(String(business.id))}>{business.name}</button>,
+                <span className="font-mono text-xs">/{business.slug}</span>,
+                <span className={`rounded-md px-2 py-1 text-xs font-bold ${business.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{business.active ? 'ACTIVE' : 'INACTIVE'}</span>,
+                business.createdAt ? new Date(business.createdAt).toLocaleDateString() : '-',
+                <span className="font-mono text-xs text-graphite">{publicLink(business.slug)}</span>,
+                <div className="flex flex-wrap gap-2">
+                  <a className="btn-secondary px-2 py-1.5" href={publicLink(business.slug)} target="_blank" rel="noreferrer" aria-label="View public page"><ExternalLink size={15} /></a>
+                  <button className="btn-secondary px-2 py-1.5" onClick={() => openEdit(business)} aria-label="Edit business"><Edit3 size={15} /></button>
+                  <button className="btn-secondary px-2 py-1.5" onClick={() => toggleStatus(business)}>{business.active ? 'Deactivate' : 'Activate'}</button>
+                  <button className="btn-secondary border-coral px-2 py-1.5 text-coral" onClick={() => deleteBusiness(business)} aria-label="Delete business"><Trash2 size={15} /></button>
+                </div>,
+              ])}
+            />
+          </section>
+
+          <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_0.75fr]">
+            <BusinessPreview business={selectedBusiness} onEdit={() => selectedBusiness && openEdit(selectedBusiness)} />
+            <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-bold">Analytics</h3>
+              <div className="mt-4 space-y-3 text-sm">
+                <AnalyticsRow label="Business growth" value={`${analytics?.newBusinessesThisMonth ?? 0} new this month`} />
+                <AnalyticsRow label="Bookings per day" value={`${analytics?.bookingsToday ?? 0} today`} />
+                <AnalyticsRow label="Booking statuses" value={`${analytics?.pendingBookings ?? 0} pending / ${analytics?.confirmedBookings ?? 0} confirmed / ${analytics?.completedBookings ?? 0} completed`} />
+                <div className="rounded-md bg-mist p-3">
+                  <p className="font-semibold">Most active businesses</p>
+                  <div className="mt-2 space-y-1 text-graphite">
+                    {(analytics?.mostActiveBusinesses || []).map((item) => <p key={item}>{item}</p>)}
+                    {!analytics?.mostActiveBusinesses?.length && <p>No booking activity yet.</p>}
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </div>
+      {modalOpen && (
+        <BusinessModal
+          draft={draft}
+          setDraft={setDraft}
+          editing={Boolean(editingBusiness)}
+          onClose={() => setModalOpen(false)}
+          onSubmit={saveBusiness}
+        />
+      )}
+    </main>
+  );
+}
+
+function BusinessPreview({ business, onEdit }) {
+  if (!business) {
+    return (
+      <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
+        <p className="text-sm text-graphite">Select a business from the table to preview its public profile details.</p>
+      </section>
+    );
+  }
+  const colors = [business.primaryColor, business.secondaryColor, business.accentColor].filter(Boolean);
+  return (
+    <section className="overflow-hidden rounded-lg border border-line bg-white shadow-sm">
+      <div className="h-40 bg-mist bg-cover bg-center" style={{ backgroundImage: business.coverImageUrl ? `url(${business.coverImageUrl})` : undefined }} />
+      <div className="p-5">
+        <div className="-mt-12 mb-4 flex items-end gap-4">
+          {business.logoUrl ? <img className="h-20 w-20 rounded-lg border-4 border-white object-cover shadow-sm" src={business.logoUrl} alt="" /> : <span className="flex h-20 w-20 items-center justify-center rounded-lg border-4 border-white bg-mist text-xl font-bold text-teal shadow-sm">{business.name?.slice(0, 2)?.toUpperCase()}</span>}
+          <div>
+            <h3 className="text-2xl font-bold">{business.name}</h3>
+            <p className="text-sm text-graphite">{business.tagline}</p>
+          </div>
+        </div>
+        <div className="grid gap-3 text-sm md:grid-cols-2">
+          <p><span className="font-semibold">Public link:</span> {publicLink(business.slug)}</p>
+          <p><span className="font-semibold">Status:</span> {business.active ? 'Active' : 'Inactive'}</p>
+          <p><span className="font-semibold">Phone:</span> {business.phone || business.phoneNumber || '-'}</p>
+          <p><span className="font-semibold">WhatsApp:</span> {business.whatsappNumber || '-'}</p>
+          <p className="md:col-span-2"><span className="font-semibold">Address:</span> {business.address || '-'}</p>
+          <p className="md:col-span-2"><span className="font-semibold">Opening hours:</span> {business.openingHours || '-'}</p>
+        </div>
+        <div className="mt-4 flex items-center gap-2">
+          {colors.map((color) => <span key={color} className="h-7 w-7 rounded-md border border-line" style={{ backgroundColor: color }} title={color} />)}
+        </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <a className="btn-primary" href={publicLink(business.slug)} target="_blank" rel="noreferrer"><ExternalLink size={17} /> View Public Page</a>
+          <button className="btn-secondary" onClick={onEdit}><Edit3 size={17} /> Edit Business</button>
+          <button className="btn-secondary">Manage Services</button>
+          <button className="btn-secondary">Manage Staff</button>
+          <button className="btn-secondary">Manage Bookings</button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AnalyticsRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between rounded-md border border-line px-3 py-2">
+      <span className="font-semibold">{label}</span>
+      <span className="text-graphite">{value}</span>
+    </div>
+  );
+}
+
+function BusinessModal({ draft, setDraft, editing, onClose, onSubmit }) {
+  const [tempPassword, setTempPassword] = useState(draft.temporaryPassword || '');
+  const update = (field, value) => {
+    setDraft((current) => ({
+      ...current,
+      [field]: value,
+      ...(field === 'name' && !current.slug ? { slug: value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') } : {}),
+    }));
+  };
+  const link = publicLink(draft.slug);
+  return (
+    <div className="fixed inset-0 z-[70] overflow-y-auto bg-ink/35 px-4 py-8">
+      <form onSubmit={onSubmit} className="mx-auto max-w-5xl rounded-lg border border-line bg-white shadow-soft">
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <div>
+            <h2 className="text-xl font-bold">{editing ? 'Edit Business' : 'Add Business'}</h2>
+            <p className="text-sm text-graphite">Create the tenant profile. Schedules stay inside the business admin dashboard.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close modal"><X /></button>
+        </div>
+        <div className="grid gap-5 p-5 lg:grid-cols-2">
+          <div className="space-y-3">
+            <input placeholder="Business Name" value={draft.name} onChange={(event) => update('name', event.target.value)} required />
+            <input placeholder="Slug" value={draft.slug} onChange={(event) => update('slug', event.target.value)} required />
+            <div className="flex items-center gap-2 rounded-md border border-line bg-mist px-3 py-2 text-sm">
+              <span className="font-mono">{link}</span>
+              <button type="button" className="ml-auto text-teal" onClick={() => navigator.clipboard?.writeText(link)}><Copy size={16} /></button>
+              <a className="text-teal" href={link} target="_blank" rel="noreferrer"><ExternalLink size={16} /></a>
+            </div>
+            <input placeholder="Tagline" value={draft.tagline} onChange={(event) => update('tagline', event.target.value)} />
+            <textarea placeholder="Description" rows="4" value={draft.description} onChange={(event) => update('description', event.target.value)} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input placeholder="Phone" value={draft.phone} onChange={(event) => update('phone', event.target.value)} />
+              <input placeholder="WhatsApp" value={draft.whatsappNumber} onChange={(event) => update('whatsappNumber', event.target.value)} />
+              <input type="email" placeholder="Email" value={draft.email} onChange={(event) => update('email', event.target.value)} />
+              <input placeholder="Opening Hours" value={draft.openingHours} onChange={(event) => update('openingHours', event.target.value)} />
+            </div>
+            <input placeholder="Address" value={draft.address} onChange={(event) => update('address', event.target.value)} />
+            <input placeholder="Google Maps URL" value={draft.googleMapsUrl} onChange={(event) => update('googleMapsUrl', event.target.value)} />
+          </div>
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <UploadField label="Upload Logo" icon={Upload} value={draft.logoUrl} onChange={(value) => update('logoUrl', value)} />
+              <UploadField label="Upload Cover" icon={ImagePlus} value={draft.coverImageUrl} onChange={(value) => update('coverImageUrl', value)} />
+              <UploadField label="Gallery Images" icon={ImagePlus} value={draft.galleryImageUrls} onChange={(value) => update('galleryImageUrls', value)} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <input type="color" title="Primary Color" value={draft.primaryColor} onChange={(event) => update('primaryColor', event.target.value)} />
+              <input type="color" title="Secondary Color" value={draft.secondaryColor} onChange={(event) => update('secondaryColor', event.target.value)} />
+              <input type="color" title="Accent Color" value={draft.accentColor} onChange={(event) => update('accentColor', event.target.value)} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <select value={draft.fontStyle} onChange={(event) => update('fontStyle', event.target.value)}>
+                <option>Inter</option>
+                <option>System UI</option>
+                <option>Georgia</option>
+              </select>
+              <select value={draft.buttonStyle} onChange={(event) => update('buttonStyle', event.target.value)}>
+                <option value="rounded">Rounded</option>
+                <option value="pill">Pill</option>
+                <option value="sharp">Sharp</option>
+              </select>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input placeholder="Instagram URL" value={draft.instagramUrl} onChange={(event) => update('instagramUrl', event.target.value)} />
+              <input placeholder="Facebook URL" value={draft.facebookUrl} onChange={(event) => update('facebookUrl', event.target.value)} />
+              <input placeholder="TikTok URL" value={draft.tiktokUrl} onChange={(event) => update('tiktokUrl', event.target.value)} />
+              <select value={draft.active ? 'true' : 'false'} onChange={(event) => update('active', event.target.value === 'true')}>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input placeholder="Business Owner Name" value={draft.ownerName} onChange={(event) => update('ownerName', event.target.value)} />
+              <input type="email" placeholder="Business Owner Email" value={draft.ownerEmail} onChange={(event) => update('ownerEmail', event.target.value)} />
+            </div>
+            <button
+              type="button"
+              className="btn-secondary w-full"
+              onClick={() => {
+                const generated = Math.random().toString(36).slice(2, 10) + 'A!9';
+                setTempPassword(generated);
+                update('temporaryPassword', generated);
+                navigator.clipboard?.writeText(generated);
+              }}
+            >
+              Generate temporary password
+            </button>
+            {tempPassword && <input readOnly value={tempPassword} aria-label="Generated temporary password" />}
+          </div>
+        </div>
+        <div className="flex flex-col-reverse gap-3 border-t border-line px-5 py-4 sm:flex-row sm:justify-end">
+          <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary">{editing ? 'Save Changes' : 'Create Business'}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function UploadField({ label, icon: Icon, value, onChange }) {
+  return (
+    <label className="block rounded-lg border border-dashed border-line bg-mist/60 p-3 text-center normal-case tracking-normal">
+      <Icon className="mx-auto mb-2 text-teal" size={20} />
+      <span className="block text-xs font-bold text-ink">{label}</span>
+      <span className="mt-1 block text-[11px] text-graphite">Paste image URL for now</span>
+      <input className="mt-3 bg-white text-xs" value={value || ''} onChange={(event) => onChange(event.target.value)} placeholder="https://..." />
+    </label>
   );
 }
 
@@ -747,6 +1250,18 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
     const created = await api.createAvailability({ ...availabilityDraft, capacity: Number(availabilityDraft.capacity) }, selectedBusinessId);
     setAvailability((current) => [...current, created]);
   };
+
+  if (isSuperAdmin) {
+    return (
+      <SuperAdminDashboard
+        setToken={setToken}
+        setAdminUser={setAdminUser}
+        adminUser={adminUser}
+        businesses={businesses}
+        setBusinesses={setBusinesses}
+      />
+    );
+  }
 
   return (
     <main className="section bg-[#f7faf9]">

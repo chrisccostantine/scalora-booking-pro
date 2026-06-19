@@ -4,6 +4,7 @@ import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoRequest;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoResponse;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessRequest;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessResponse;
+import com.scalora.bookingpro.dto.AdminDtos.PlatformAnalyticsResponse;
 import com.scalora.bookingpro.dto.AdminDtos.AdminUserRequest;
 import com.scalora.bookingpro.dto.AdminDtos.AdminUserResponse;
 import com.scalora.bookingpro.dto.AdminDtos.AvailabilityRequest;
@@ -15,6 +16,8 @@ import com.scalora.bookingpro.dto.AdminDtos.TestimonialResponse;
 import com.scalora.bookingpro.entity.Business;
 import com.scalora.bookingpro.entity.BusinessAvailability;
 import com.scalora.bookingpro.entity.BusinessInfo;
+import com.scalora.bookingpro.entity.Booking;
+import com.scalora.bookingpro.entity.BookingStatus;
 import com.scalora.bookingpro.entity.Role;
 import com.scalora.bookingpro.entity.Staff;
 import com.scalora.bookingpro.entity.Testimonial;
@@ -29,6 +32,9 @@ import com.scalora.bookingpro.repository.ServiceRepository;
 import com.scalora.bookingpro.repository.StaffRepository;
 import com.scalora.bookingpro.repository.TestimonialRepository;
 import com.scalora.bookingpro.repository.UserRepository;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -73,6 +79,14 @@ public class AdminContentService {
         return businessResponse(findBusiness(slug));
     }
 
+    public BusinessResponse activeBusinessBySlug(String slug) {
+        Business business = findBusiness(slug);
+        if (!business.isActive()) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Business is unavailable.");
+        }
+        return businessResponse(business);
+    }
+
     public BusinessResponse businessById(Long id) {
         return businessResponse(findBusiness(id));
     }
@@ -85,7 +99,8 @@ public class AdminContentService {
         Business business = new Business();
         apply(business, request);
         Business saved = businesses.save(business);
-        getOrCreateInfo(saved);
+        syncInfo(saved);
+        createOwnerAdminIfRequested(saved, request);
         return businessResponse(saved);
     }
 
@@ -97,6 +112,38 @@ public class AdminContentService {
         }
         apply(business, request);
         return businessResponse(businesses.save(business));
+    }
+
+    public BusinessResponse updateBusinessStatus(Long id, boolean active) {
+        Business business = findBusiness(id);
+        business.setActive(active);
+        return businessResponse(businesses.save(business));
+    }
+
+    public PlatformAnalyticsResponse analytics() {
+        List<Business> allBusinesses = businesses.findAll();
+        List<Booking> allBookings = bookings.findAll();
+        LocalDate today = LocalDate.now();
+        Instant startOfMonth = today.withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        List<String> mostActive = allBusinesses.stream()
+            .map(business -> business.getName() + " (" + allBookings.stream()
+                .filter(booking -> booking.getService() != null
+                    && booking.getService().getBusiness() != null
+                    && business.getId().equals(booking.getService().getBusiness().getId()))
+                .count() + ")")
+            .limit(5)
+            .toList();
+        return new PlatformAnalyticsResponse(
+            allBusinesses.size(),
+            allBusinesses.stream().filter(Business::isActive).count(),
+            allBusinesses.stream().filter(business -> !business.isActive()).count(),
+            allBookings.stream().filter(booking -> today.equals(booking.getAppointmentDate())).count(),
+            allBookings.stream().filter(booking -> booking.getStatus() == BookingStatus.PENDING).count(),
+            allBookings.stream().filter(booking -> booking.getStatus() == BookingStatus.CONFIRMED).count(),
+            allBookings.stream().filter(booking -> booking.getStatus() == BookingStatus.COMPLETED).count(),
+            allBusinesses.stream().filter(business -> business.getCreatedAt() != null && !business.getCreatedAt().isBefore(startOfMonth)).count(),
+            mostActive
+        );
     }
 
     @Transactional
@@ -242,7 +289,8 @@ public class AdminContentService {
     }
 
     public BusinessInfoResponse updateBusinessInfo(Long businessId, BusinessInfoRequest request) {
-        BusinessInfo info = getOrCreateInfo(findBusiness(businessId));
+        Business business = findBusiness(businessId);
+        BusinessInfo info = getOrCreateInfo(business);
         info.setBusinessName(request.businessName());
         info.setLogoUrl(request.logoUrl());
         info.setCoverImageUrl(request.coverImageUrl());
@@ -254,6 +302,17 @@ public class AdminContentService {
         info.setFacebookUrl(request.facebookUrl());
         info.setInstagramUrl(request.instagramUrl());
         info.setLinkedinUrl(request.linkedinUrl());
+        business.setName(defaultIfBlank(request.businessName(), business.getName()));
+        business.setLogoUrl(request.logoUrl());
+        business.setCoverImageUrl(request.coverImageUrl());
+        business.setGalleryImageUrls(request.galleryImageUrls());
+        business.setPhone(request.phoneNumber());
+        business.setWhatsappNumber(request.whatsappNumber());
+        business.setAddress(request.address());
+        business.setOpeningHours(request.openingHours());
+        business.setFacebookUrl(request.facebookUrl());
+        business.setInstagramUrl(request.instagramUrl());
+        businesses.save(business);
         return infoResponse(businessInfo.save(info));
     }
 
@@ -278,7 +337,40 @@ public class AdminContentService {
         business.setName(request.name());
         business.setSlug(normalizeSlug(request.slug()));
         business.setTagline(request.tagline());
+        business.setDescription(request.description());
+        business.setLogoUrl(request.logoUrl());
+        business.setCoverImageUrl(request.coverImageUrl());
+        business.setGalleryImageUrls(request.galleryImageUrls());
+        business.setPrimaryColor(defaultIfBlank(request.primaryColor(), "#12756f"));
+        business.setSecondaryColor(defaultIfBlank(request.secondaryColor(), "#eef6f4"));
+        business.setAccentColor(defaultIfBlank(request.accentColor(), "#d85f4f"));
+        business.setFontStyle(defaultIfBlank(request.fontStyle(), "Inter"));
+        business.setButtonStyle(defaultIfBlank(request.buttonStyle(), "rounded"));
+        business.setPhone(request.phone());
+        business.setWhatsappNumber(request.whatsappNumber());
+        business.setEmail(request.email());
+        business.setAddress(request.address());
+        business.setGoogleMapsUrl(request.googleMapsUrl());
+        business.setOpeningHours(request.openingHours());
+        business.setInstagramUrl(request.instagramUrl());
+        business.setFacebookUrl(request.facebookUrl());
+        business.setTiktokUrl(request.tiktokUrl());
+        business.setOwnerName(request.ownerName());
+        business.setOwnerEmail(request.ownerEmail());
         business.setActive(request.active());
+        syncInfo(business);
+    }
+
+    private void createOwnerAdminIfRequested(Business business, BusinessRequest request) {
+        if (request.ownerEmail() == null || request.ownerEmail().isBlank()) return;
+        if (request.temporaryPassword() == null || request.temporaryPassword().isBlank()) return;
+        if (users.existsByEmail(request.ownerEmail())) return;
+        User user = new User();
+        user.setEmail(request.ownerEmail());
+        user.setPasswordHash(passwordEncoder.encode(request.temporaryPassword()));
+        user.setRole(Role.BUSINESS_ADMIN);
+        user.setBusiness(business);
+        users.save(user);
     }
 
     private void apply(BusinessAvailability window, AvailabilityRequest request) {
@@ -294,6 +386,26 @@ public class AdminContentService {
 
     private String normalizeSlug(String slug) {
         return slug.toLowerCase().replaceAll("[^a-z0-9-]", "-").replaceAll("-+", "-").replaceAll("(^-|-$)", "");
+    }
+
+    private String defaultIfBlank(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private void syncInfo(Business business) {
+        if (business.getId() == null) return;
+        BusinessInfo info = getOrCreateInfo(business);
+        info.setBusinessName(business.getName());
+        info.setLogoUrl(business.getLogoUrl());
+        info.setCoverImageUrl(business.getCoverImageUrl());
+        info.setGalleryImageUrls(business.getGalleryImageUrls());
+        info.setPhoneNumber(business.getPhone());
+        info.setWhatsappNumber(business.getWhatsappNumber());
+        info.setAddress(business.getAddress());
+        info.setOpeningHours(business.getOpeningHours());
+        info.setFacebookUrl(business.getFacebookUrl());
+        info.setInstagramUrl(business.getInstagramUrl());
+        businessInfo.save(info);
     }
 
     private void requireAccess(Long businessId, User user) {
@@ -319,7 +431,37 @@ public class AdminContentService {
     }
 
     private BusinessResponse businessResponse(Business business) {
-        return new BusinessResponse(business.getId(), business.getName(), business.getSlug(), business.getTagline(), business.isActive());
+        return new BusinessResponse(
+            business.getId(),
+            business.getName(),
+            business.getSlug(),
+            business.getTagline(),
+            business.getDescription(),
+            business.getLogoUrl(),
+            business.getCoverImageUrl(),
+            business.getGalleryImageUrls(),
+            business.getPrimaryColor(),
+            business.getSecondaryColor(),
+            business.getAccentColor(),
+            business.getFontStyle(),
+            business.getButtonStyle(),
+            business.getPhone(),
+            business.getPhone(),
+            business.getWhatsappNumber(),
+            business.getEmail(),
+            business.getAddress(),
+            business.getGoogleMapsUrl(),
+            business.getOpeningHours(),
+            business.getInstagramUrl(),
+            business.getFacebookUrl(),
+            business.getTiktokUrl(),
+            business.getOwnerName(),
+            business.getOwnerEmail(),
+            business.isActive() ? "ACTIVE" : "INACTIVE",
+            business.isActive(),
+            business.getCreatedAt(),
+            business.getUpdatedAt()
+        );
     }
 
     private AdminUserResponse adminUserResponse(User user) {

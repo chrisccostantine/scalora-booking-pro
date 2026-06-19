@@ -49,16 +49,18 @@ public class PublicController {
 
     @GetMapping("/businesses/{slug}")
     public BusinessResponse business(@PathVariable String slug) {
-        return content.businessBySlug(slug);
+        return content.activeBusinessBySlug(slug);
     }
 
     @GetMapping("/businesses/{slug}/services")
     public List<ServiceResponse> businessServices(@PathVariable String slug) {
+        content.activeBusinessBySlug(slug);
         return serviceCatalog.publicServices(slug);
     }
 
     @GetMapping("/businesses/{slug}/staff")
     public List<StaffResponse> businessStaff(@PathVariable String slug) {
+        content.activeBusinessBySlug(slug);
         return content.publicStaff(slug);
     }
 
@@ -68,8 +70,8 @@ public class PublicController {
         @RequestParam Long serviceId,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        content.businessBySlug(slug);
-        return bookings.availableSlots(serviceId, date);
+        content.activeBusinessBySlug(slug);
+        return bookings.availableSlotsForBusiness(slug, serviceId, date);
     }
 
     @PostMapping("/bookings")
@@ -85,6 +87,7 @@ public class PublicController {
 
     @GetMapping("/businesses/{slug}/testimonials")
     public List<TestimonialResponse> businessTestimonials(@PathVariable String slug) {
+        content.activeBusinessBySlug(slug);
         return content.publicTestimonials(slug);
     }
 

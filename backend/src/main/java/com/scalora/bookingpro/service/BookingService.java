@@ -38,6 +38,20 @@ public class BookingService {
     public BookingResponse create(BookingRequest request) {
         var service = services.findById(request.serviceId())
             .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Service not found"));
+        return create(request, service);
+    }
+
+    @Transactional
+    public BookingResponse createForBusiness(String slug, BookingRequest request) {
+        var service = services.findById(request.serviceId())
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Service not found"));
+        if (service.getBusiness() == null || !slug.equals(service.getBusiness().getSlug())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Service does not belong to this business.");
+        }
+        return create(request, service);
+    }
+
+    private BookingResponse create(BookingRequest request, com.scalora.bookingpro.entity.ServiceEntity service) {
         if (!service.isActive()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Service is not available for booking.");
         }
@@ -62,6 +76,15 @@ public class BookingService {
         booking.setNotes(request.notes());
         booking.setStatus(BookingStatus.PENDING);
         return toResponse(bookings.save(booking));
+    }
+
+    public List<AvailabilitySlotResponse> availableSlotsForBusiness(String slug, Long serviceId, LocalDate date) {
+        var service = services.findById(serviceId)
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Service not found"));
+        if (service.getBusiness() == null || !slug.equals(service.getBusiness().getSlug())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Service does not belong to this business.");
+        }
+        return availableSlots(serviceId, date);
     }
 
     public List<AvailabilitySlotResponse> availableSlots(Long serviceId, LocalDate date) {
