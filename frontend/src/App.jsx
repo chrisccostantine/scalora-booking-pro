@@ -248,7 +248,7 @@ function PublicSite({ businessInfo, services, staff, testimonials, businesses, p
 
   const primary = businessInfo.primaryColor || '#12756f';
   const accent = businessInfo.accentColor || '#d85f4f';
-  const gallery = (businessInfo.galleryImageUrls || '').split(',').map((item) => item.trim()).filter(Boolean);
+  const gallery = imageList(businessInfo.galleryImageUrls);
 
   return (
     <main style={{ '--brand-primary': primary, '--brand-accent': accent, fontFamily: businessInfo.fontStyle || 'Inter, sans-serif' }}>
@@ -715,6 +715,16 @@ function publicLink(slug) {
   return `/b/${slug || ''}`;
 }
 
+function imageList(value) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+}
+
 function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, setBusinesses }) {
   const [activeNav, setActiveNav] = useState('Businesses');
   const [analytics, setAnalytics] = useState(null);
@@ -812,6 +822,178 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
     ['Platform Settings', Settings],
   ];
 
+  const metricGrid = (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      {metrics.map(([label, value, Icon]) => (
+        <article key={label} className="rounded-lg border border-line bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-xs font-semibold text-graphite">{label}</span>
+            <Icon className="text-teal" size={18} />
+          </div>
+          <p className="text-2xl font-bold">{value}</p>
+        </article>
+      ))}
+    </div>
+  );
+
+  const businessTable = (
+    <section className="rounded-lg border border-line bg-white shadow-sm">
+      <div className="border-b border-line p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <h3 className="text-lg font-bold">Businesses</h3>
+          <div className="grid gap-3 sm:grid-cols-[1.3fr_150px_160px] lg:w-[680px]">
+            <label className="relative block">
+              <Search className="pointer-events-none absolute left-3 top-2.5 text-graphite" size={17} />
+              <input className="pl-9" placeholder="Search name or slug" value={search} onChange={(event) => setSearch(event.target.value)} />
+            </label>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="ALL">All</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+            <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} />
+          </div>
+        </div>
+      </div>
+      <ResponsiveTable
+        columns={['Logo', 'Business Name', 'Slug', 'Status', 'Created Date', 'Public Link', 'Actions']}
+        rows={filteredBusinesses.map((business) => [
+          business.logoUrl ? <img className="h-10 w-10 rounded-md object-cover" src={business.logoUrl} alt="" /> : <span className="flex h-10 w-10 items-center justify-center rounded-md bg-mist text-xs font-bold text-teal">{business.name?.slice(0, 2)?.toUpperCase()}</span>,
+          <button className="text-left font-semibold hover:text-teal" onClick={() => setSelectedBusinessId(String(business.id))}>{business.name}</button>,
+          <span className="font-mono text-xs">/{business.slug}</span>,
+          <span className={`rounded-md px-2 py-1 text-xs font-bold ${business.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{business.active ? 'ACTIVE' : 'INACTIVE'}</span>,
+          business.createdAt ? new Date(business.createdAt).toLocaleDateString() : '-',
+          <span className="font-mono text-xs text-graphite">{publicLink(business.slug)}</span>,
+          <div className="flex flex-wrap gap-2">
+            <a className="btn-secondary px-2 py-1.5" href={publicLink(business.slug)} target="_blank" rel="noreferrer" aria-label="View public page"><ExternalLink size={15} /></a>
+            <button className="btn-secondary px-2 py-1.5" onClick={() => openEdit(business)} aria-label="Edit business"><Edit3 size={15} /></button>
+            <button className="btn-secondary px-2 py-1.5" onClick={() => toggleStatus(business)}>{business.active ? 'Deactivate' : 'Activate'}</button>
+            <button className="btn-secondary border-coral px-2 py-1.5 text-coral" onClick={() => deleteBusiness(business)} aria-label="Delete business"><Trash2 size={15} /></button>
+          </div>,
+        ])}
+      />
+    </section>
+  );
+
+  const analyticsPanel = (
+    <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
+      <h3 className="text-lg font-bold">Platform Analytics</h3>
+      <div className="mt-4 space-y-3 text-sm">
+        <AnalyticsRow label="Total businesses growth" value={`${analytics?.newBusinessesThisMonth ?? 0} new this month`} />
+        <AnalyticsRow label="Bookings per day" value={`${analytics?.bookingsToday ?? 0} today`} />
+        <AnalyticsRow label="New businesses per month" value={`${analytics?.newBusinessesThisMonth ?? 0} this month`} />
+        <AnalyticsRow label="Booking statuses overview" value={`${analytics?.pendingBookings ?? 0} pending / ${analytics?.confirmedBookings ?? 0} confirmed / ${analytics?.completedBookings ?? 0} completed`} />
+        <div className="rounded-md bg-mist p-3">
+          <p className="font-semibold">Most active businesses</p>
+          <div className="mt-2 space-y-1 text-graphite">
+            {(analytics?.mostActiveBusinesses || []).map((item) => <p key={item}>{item}</p>)}
+            {!analytics?.mostActiveBusinesses?.length && <p>No booking activity yet.</p>}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderContent = () => {
+    if (activeNav === 'Dashboard') {
+      return (
+        <>
+          {metricGrid}
+          <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_0.72fr]">
+            <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-bold">Platform Snapshot</h3>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <AnalyticsRow label="Active rate" value={`${businesses.length ? Math.round((businesses.filter((business) => business.active).length / businesses.length) * 100) : 0}%`} />
+                <AnalyticsRow label="Inactive" value={analytics?.inactiveBusinesses ?? 0} />
+                <AnalyticsRow label="Pending" value={analytics?.pendingBookings ?? 0} />
+              </div>
+            </section>
+            {analyticsPanel}
+          </div>
+        </>
+      );
+    }
+
+    if (activeNav === 'Businesses') {
+      return (
+        <>
+          {metricGrid}
+          <div className="mt-6">{businessTable}</div>
+          <div className="mt-6">
+            <BusinessPreview business={selectedBusiness} onEdit={() => selectedBusiness && openEdit(selectedBusiness)} />
+          </div>
+        </>
+      );
+    }
+
+    if (activeNav === 'Bookings') {
+      return (
+        <>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Stat icon={CalendarCheck} label="Bookings Today" value={analytics?.bookingsToday ?? 0} />
+            <Stat icon={Clock} label="Pending Bookings" value={analytics?.pendingBookings ?? 0} />
+            <Stat icon={Check} label="Completed Bookings" value={analytics?.completedBookings ?? 0} />
+          </div>
+          <section className="mt-6 rounded-lg border border-line bg-white p-5 shadow-sm">
+            <h3 className="text-lg font-bold">Platform Bookings</h3>
+            <p className="mt-2 text-sm text-graphite">Super admin sees platform-level booking health here. Detailed booking operations stay inside each business admin dashboard to keep tenant data separated.</p>
+          </section>
+        </>
+      );
+    }
+
+    if (activeNav === 'Users') {
+      return (
+        <section className="rounded-lg border border-line bg-white shadow-sm">
+          <div className="border-b border-line p-5">
+            <h3 className="text-lg font-bold">Business Owner Accounts</h3>
+            <p className="mt-1 text-sm text-graphite">Owner accounts are created when you add a business with owner email and a generated temporary password.</p>
+          </div>
+          <ResponsiveTable
+            columns={['Business', 'Owner Name', 'Owner Email', 'Status', 'Action']}
+            rows={businesses.map((business) => [
+              business.name,
+              business.ownerName || '-',
+              business.ownerEmail || '-',
+              business.ownerEmail ? 'Account-ready' : 'Missing owner email',
+              <button className="btn-secondary px-3 py-1.5" onClick={() => openEdit(business)}>Edit Owner</button>,
+            ])}
+          />
+        </section>
+      );
+    }
+
+    if (activeNav === 'Analytics') {
+      return (
+        <>
+          {metricGrid}
+          <div className="mt-6">{analyticsPanel}</div>
+        </>
+      );
+    }
+
+    return (
+      <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-bold">Platform Settings</h3>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <AnalyticsRow label="Main domain" value={window.location.origin} />
+          <AnalyticsRow label="Public business URL pattern" value="/b/{business-slug}" />
+          <AnalyticsRow label="Super admin" value={adminUser?.email || '-'} />
+          <AnalyticsRow label="Authentication" value="JWT protected admin APIs" />
+        </div>
+      </section>
+    );
+  };
+
+  const sectionTitle = {
+    Dashboard: 'Platform Dashboard',
+    Businesses: 'Businesses',
+    Bookings: 'Bookings',
+    Users: 'Users',
+    Analytics: 'Analytics',
+    'Platform Settings': 'Platform Settings',
+  }[activeNav];
+
   return (
     <main className="min-h-[calc(100vh-72px)] bg-[#f6f7f8]">
       <div className="grid min-h-[calc(100vh-72px)] lg:grid-cols-[260px_1fr]">
@@ -841,79 +1023,15 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
           <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
             <div>
               <p className="text-sm font-bold uppercase text-coral">Multi-tenant platform</p>
-              <h2 className="mt-1 text-3xl font-bold">Scalora Booking Pro</h2>
-              <p className="mt-1 text-sm text-graphite">Manage business profiles, public links, branding, and platform health.</p>
+              <h2 className="mt-1 text-3xl font-bold">{sectionTitle}</h2>
+              <p className="mt-1 text-sm text-graphite">Manage business profiles, public links, branding, users, and platform health.</p>
             </div>
-            <button className="btn-primary" onClick={openCreate}><Plus size={18} /> Add Business</button>
+            {(activeNav === 'Dashboard' || activeNav === 'Businesses') && (
+              <button className="btn-primary" onClick={openCreate}><Plus size={18} /> Add Business</button>
+            )}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-            {metrics.map(([label, value, Icon]) => (
-              <article key={label} className="rounded-lg border border-line bg-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-graphite">{label}</span>
-                  <Icon className="text-teal" size={18} />
-                </div>
-                <p className="text-2xl font-bold">{value}</p>
-              </article>
-            ))}
-          </div>
-
-          <section className="mt-6 rounded-lg border border-line bg-white shadow-sm">
-            <div className="border-b border-line p-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <h3 className="text-lg font-bold">Businesses</h3>
-                <div className="grid gap-3 sm:grid-cols-[1.3fr_150px_160px] lg:w-[680px]">
-                  <label className="relative block">
-                    <Search className="pointer-events-none absolute left-3 top-2.5 text-graphite" size={17} />
-                    <input className="pl-9" placeholder="Search name or slug" value={search} onChange={(event) => setSearch(event.target.value)} />
-                  </label>
-                  <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                    <option value="ALL">All</option>
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
-                  </select>
-                  <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} />
-                </div>
-              </div>
-            </div>
-            <ResponsiveTable
-              columns={['Logo', 'Business Name', 'Slug', 'Status', 'Created Date', 'Public Link', 'Actions']}
-              rows={filteredBusinesses.map((business) => [
-                business.logoUrl ? <img className="h-10 w-10 rounded-md object-cover" src={business.logoUrl} alt="" /> : <span className="flex h-10 w-10 items-center justify-center rounded-md bg-mist text-xs font-bold text-teal">{business.name?.slice(0, 2)?.toUpperCase()}</span>,
-                <button className="text-left font-semibold hover:text-teal" onClick={() => setSelectedBusinessId(String(business.id))}>{business.name}</button>,
-                <span className="font-mono text-xs">/{business.slug}</span>,
-                <span className={`rounded-md px-2 py-1 text-xs font-bold ${business.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{business.active ? 'ACTIVE' : 'INACTIVE'}</span>,
-                business.createdAt ? new Date(business.createdAt).toLocaleDateString() : '-',
-                <span className="font-mono text-xs text-graphite">{publicLink(business.slug)}</span>,
-                <div className="flex flex-wrap gap-2">
-                  <a className="btn-secondary px-2 py-1.5" href={publicLink(business.slug)} target="_blank" rel="noreferrer" aria-label="View public page"><ExternalLink size={15} /></a>
-                  <button className="btn-secondary px-2 py-1.5" onClick={() => openEdit(business)} aria-label="Edit business"><Edit3 size={15} /></button>
-                  <button className="btn-secondary px-2 py-1.5" onClick={() => toggleStatus(business)}>{business.active ? 'Deactivate' : 'Activate'}</button>
-                  <button className="btn-secondary border-coral px-2 py-1.5 text-coral" onClick={() => deleteBusiness(business)} aria-label="Delete business"><Trash2 size={15} /></button>
-                </div>,
-              ])}
-            />
-          </section>
-
-          <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_0.75fr]">
-            <BusinessPreview business={selectedBusiness} onEdit={() => selectedBusiness && openEdit(selectedBusiness)} />
-            <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-bold">Analytics</h3>
-              <div className="mt-4 space-y-3 text-sm">
-                <AnalyticsRow label="Business growth" value={`${analytics?.newBusinessesThisMonth ?? 0} new this month`} />
-                <AnalyticsRow label="Bookings per day" value={`${analytics?.bookingsToday ?? 0} today`} />
-                <AnalyticsRow label="Booking statuses" value={`${analytics?.pendingBookings ?? 0} pending / ${analytics?.confirmedBookings ?? 0} confirmed / ${analytics?.completedBookings ?? 0} completed`} />
-                <div className="rounded-md bg-mist p-3">
-                  <p className="font-semibold">Most active businesses</p>
-                  <div className="mt-2 space-y-1 text-graphite">
-                    {(analytics?.mostActiveBusinesses || []).map((item) => <p key={item}>{item}</p>)}
-                    {!analytics?.mostActiveBusinesses?.length && <p>No booking activity yet.</p>}
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
+          {renderContent()}
         </section>
       </div>
       {modalOpen && (
@@ -1082,13 +1200,47 @@ function BusinessModal({ draft, setDraft, editing, onClose, onSubmit }) {
 }
 
 function UploadField({ label, icon: Icon, value, onChange }) {
+  const isGallery = label.includes('Gallery');
+  const images = isGallery ? imageList(value) : (value ? [value] : []);
+  const handleFiles = (files) => {
+    const selected = Array.from(files || []);
+    if (!selected.length) return;
+    Promise.all(selected.map((file) => new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    }))).then((results) => {
+      onChange(isGallery ? JSON.stringify([...images, ...results]) : results[0]);
+    });
+  };
+
   return (
-    <label className="block rounded-lg border border-dashed border-line bg-mist/60 p-3 text-center normal-case tracking-normal">
-      <Icon className="mx-auto mb-2 text-teal" size={20} />
-      <span className="block text-xs font-bold text-ink">{label}</span>
-      <span className="mt-1 block text-[11px] text-graphite">Paste image URL for now</span>
-      <input className="mt-3 bg-white text-xs" value={value || ''} onChange={(event) => onChange(event.target.value)} placeholder="https://..." />
-    </label>
+    <div className="rounded-lg border border-dashed border-line bg-mist/60 p-3 text-center">
+      <label className="block cursor-pointer normal-case tracking-normal">
+        <Icon className="mx-auto mb-2 text-teal" size={20} />
+        <span className="block text-xs font-bold text-ink">{label}</span>
+        <span className="mt-1 block text-[11px] text-graphite">Choose image file</span>
+        <input
+          className="sr-only"
+          type="file"
+          accept="image/*"
+          multiple={isGallery}
+          onChange={(event) => handleFiles(event.target.files)}
+        />
+      </label>
+      {images.length > 0 && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {images.slice(0, isGallery ? 4 : 1).map((image, index) => (
+            <img key={`${image}-${index}`} className="h-16 w-full rounded-md object-cover" src={image} alt={`${label} preview`} />
+          ))}
+        </div>
+      )}
+      {images.length > 0 && (
+        <button type="button" className="mt-3 text-xs font-semibold text-coral" onClick={() => onChange('')}>
+          Remove
+        </button>
+      )}
+    </div>
   );
 }
 

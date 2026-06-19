@@ -12,9 +12,14 @@ public class BusinessInfo {
     @JoinColumn(name = "business_id", unique = true)
     private Business business;
     private String businessName;
+    @Lob
+    @Column(columnDefinition = "TEXT")
     private String logoUrl;
+    @Lob
+    @Column(columnDefinition = "TEXT")
     private String coverImageUrl;
-    @Column(length = 2000)
+    @Lob
+    @Column(columnDefinition = "TEXT")
     private String galleryImageUrls;
     private String phoneNumber;
     private String whatsappNumber;

@@ -22,10 +22,16 @@ public class Business {
     @Column(length = 4000)
     private String description;
 
+    @Lob
+    @Column(columnDefinition = "TEXT")
     private String logoUrl;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
     private String coverImageUrl;
 
-    @Column(length = 4000)
+    @Lob
+    @Column(columnDefinition = "TEXT")
     private String galleryImageUrls;
 
     private String primaryColor = "#12756f";
