@@ -41,9 +41,6 @@ public class DataSeeder {
             if (!"admin@scalora.local".equalsIgnoreCase(superAdminEmail)) {
                 deleteDemoAccount(users, "admin@scalora.local");
             }
-            deleteDemoBusiness(jdbc, "edgard-akar");
-            deleteDemoBusiness(jdbc, "marka-store");
-            deleteDemoBusiness(jdbc, "clinic-name");
 
             Business fallback = businesses.findAll().stream().findFirst().orElse(null);
             if (fallback != null) {
@@ -77,24 +74,6 @@ public class DataSeeder {
 
     private void deleteDemoAccount(UserRepository users, String email) {
         users.findByEmail(email).ifPresent(users::delete);
-    }
-
-    private void deleteDemoBusiness(JdbcTemplate jdbc, String slug) {
-        try {
-            Long businessId = jdbc.query("select id from businesses where slug = ?", rs -> rs.next() ? rs.getLong("id") : null, slug);
-            if (businessId == null) return;
-            jdbc.update("delete from bookings where service_id in (select id from services where business_id = ?)", businessId);
-            jdbc.update("delete from business_availability where business_id = ?", businessId);
-            jdbc.update("delete from users where business_id = ?", businessId);
-            jdbc.update("delete from staff where business_id = ?", businessId);
-            jdbc.update("delete from testimonials where business_id = ?", businessId);
-            jdbc.update("delete from business_info where business_id = ?", businessId);
-            jdbc.update("delete from contact_messages where business_id = ?", businessId);
-            jdbc.update("delete from services where business_id = ?", businessId);
-            jdbc.update("delete from businesses where id = ?", businessId);
-        } catch (Exception ignored) {
-            // Demo cleanup should never block application startup.
-        }
     }
 
     private void dropLegacyBookingUniqueConstraint(JdbcTemplate jdbc) {
