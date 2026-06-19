@@ -4,11 +4,16 @@ import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoRequest;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoResponse;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessRequest;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessResponse;
+import com.scalora.bookingpro.dto.AdminDtos.AdminUserRequest;
+import com.scalora.bookingpro.dto.AdminDtos.AdminUserResponse;
+import com.scalora.bookingpro.dto.AdminDtos.AvailabilityRequest;
+import com.scalora.bookingpro.dto.AdminDtos.AvailabilityResponse;
 import com.scalora.bookingpro.dto.AdminDtos.StaffRequest;
 import com.scalora.bookingpro.dto.AdminDtos.StaffResponse;
 import com.scalora.bookingpro.dto.AdminDtos.TestimonialRequest;
 import com.scalora.bookingpro.dto.AdminDtos.TestimonialResponse;
 import com.scalora.bookingpro.entity.Business;
+import com.scalora.bookingpro.entity.BusinessAvailability;
 import com.scalora.bookingpro.entity.BusinessInfo;
 import com.scalora.bookingpro.entity.Role;
 import com.scalora.bookingpro.entity.Staff;
@@ -16,11 +21,14 @@ import com.scalora.bookingpro.entity.Testimonial;
 import com.scalora.bookingpro.entity.User;
 import com.scalora.bookingpro.exception.ApiException;
 import com.scalora.bookingpro.repository.BusinessInfoRepository;
+import com.scalora.bookingpro.repository.BusinessAvailabilityRepository;
 import com.scalora.bookingpro.repository.BusinessRepository;
 import com.scalora.bookingpro.repository.StaffRepository;
 import com.scalora.bookingpro.repository.TestimonialRepository;
+import com.scalora.bookingpro.repository.UserRepository;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -29,12 +37,18 @@ public class AdminContentService {
     private final StaffRepository staff;
     private final TestimonialRepository testimonials;
     private final BusinessInfoRepository businessInfo;
+    private final BusinessAvailabilityRepository availability;
+    private final UserRepository users;
+    private final PasswordEncoder passwordEncoder;
 
-    public AdminContentService(BusinessRepository businesses, StaffRepository staff, TestimonialRepository testimonials, BusinessInfoRepository businessInfo) {
+    public AdminContentService(BusinessRepository businesses, StaffRepository staff, TestimonialRepository testimonials, BusinessInfoRepository businessInfo, BusinessAvailabilityRepository availability, UserRepository users, PasswordEncoder passwordEncoder) {
         this.businesses = businesses;
         this.staff = staff;
         this.testimonials = testimonials;
         this.businessInfo = businessInfo;
+        this.availability = availability;
+        this.users = users;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public List<BusinessResponse> publicBusinesses() {
@@ -73,6 +87,48 @@ public class AdminContentService {
         }
         apply(business, request);
         return businessResponse(businesses.save(business));
+    }
+
+    public List<AdminUserResponse> businessAdmins(Long businessId) {
+        return users.findByBusinessIdOrderByEmailAsc(businessId).stream().map(this::adminUserResponse).toList();
+    }
+
+    public AdminUserResponse createBusinessAdmin(AdminUserRequest request) {
+        if (users.existsByEmail(request.email())) {
+            throw new ApiException(HttpStatus.CONFLICT, "Admin email is already in use.");
+        }
+        User user = new User();
+        user.setEmail(request.email());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setRole(Role.BUSINESS_ADMIN);
+        user.setBusiness(findBusiness(request.businessId()));
+        return adminUserResponse(users.save(user));
+    }
+
+    public List<AvailabilityResponse> availability(Long businessId) {
+        return availability.findByBusinessIdOrderByDayOfWeekAscStartTimeAsc(businessId).stream().map(this::availabilityResponse).toList();
+    }
+
+    public AvailabilityResponse createAvailability(Long businessId, AvailabilityRequest request) {
+        BusinessAvailability window = new BusinessAvailability();
+        window.setBusiness(findBusiness(businessId));
+        apply(window, request);
+        return availabilityResponse(availability.save(window));
+    }
+
+    public AvailabilityResponse updateAvailability(Long id, AvailabilityRequest request, User user) {
+        BusinessAvailability window = availability.findById(id)
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Availability window not found"));
+        requireAccess(window.getBusiness().getId(), user);
+        apply(window, request);
+        return availabilityResponse(availability.save(window));
+    }
+
+    public void deleteAvailability(Long id, User user) {
+        BusinessAvailability window = availability.findById(id)
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Availability window not found"));
+        requireAccess(window.getBusiness().getId(), user);
+        availability.deleteById(id);
     }
 
     public List<StaffResponse> staff(Long businessId) {
@@ -163,6 +219,8 @@ public class AdminContentService {
         BusinessInfo info = getOrCreateInfo(findBusiness(businessId));
         info.setBusinessName(request.businessName());
         info.setLogoUrl(request.logoUrl());
+        info.setCoverImageUrl(request.coverImageUrl());
+        info.setGalleryImageUrls(request.galleryImageUrls());
         info.setPhoneNumber(request.phoneNumber());
         info.setWhatsappNumber(request.whatsappNumber());
         info.setAddress(request.address());
@@ -197,6 +255,17 @@ public class AdminContentService {
         business.setActive(request.active());
     }
 
+    private void apply(BusinessAvailability window, AvailabilityRequest request) {
+        if (!request.endTime().isAfter(request.startTime())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "End time must be after start time.");
+        }
+        window.setDayOfWeek(request.dayOfWeek());
+        window.setStartTime(request.startTime());
+        window.setEndTime(request.endTime());
+        window.setCapacity(request.capacity());
+        window.setActive(request.active());
+    }
+
     private String normalizeSlug(String slug) {
         return slug.toLowerCase().replaceAll("[^a-z0-9-]", "-").replaceAll("-+", "-").replaceAll("(^-|-$)", "");
     }
@@ -227,6 +296,20 @@ public class AdminContentService {
         return new BusinessResponse(business.getId(), business.getName(), business.getSlug(), business.getTagline(), business.isActive());
     }
 
+    private AdminUserResponse adminUserResponse(User user) {
+        return new AdminUserResponse(
+            user.getId(),
+            user.getEmail(),
+            user.getRole().name(),
+            user.getBusiness() == null ? null : user.getBusiness().getId(),
+            user.getBusiness() == null ? null : user.getBusiness().getName()
+        );
+    }
+
+    private AvailabilityResponse availabilityResponse(BusinessAvailability window) {
+        return new AvailabilityResponse(window.getId(), window.getDayOfWeek(), window.getStartTime(), window.getEndTime(), window.getCapacity(), window.isActive());
+    }
+
     private StaffResponse staffResponse(Staff member) {
         return new StaffResponse(member.getId(), member.getName(), member.getRole(), member.getEmail(), member.getPhoneNumber(), member.isActive());
     }
@@ -240,6 +323,8 @@ public class AdminContentService {
             info.getId(),
             info.getBusinessName(),
             info.getLogoUrl(),
+            info.getCoverImageUrl(),
+            info.getGalleryImageUrls(),
             info.getPhoneNumber(),
             info.getWhatsappNumber(),
             info.getAddress(),

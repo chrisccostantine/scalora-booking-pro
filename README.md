@@ -36,10 +36,10 @@ mvn spring-boot:run
 
 The backend runs on `http://localhost:8080`.
 
-Default seeded admin:
+Default seeded admin is created from environment variables.
 
-- Email: `admin@scalora.local`
-- Password: `Admin123!`
+- `SUPER_ADMIN_EMAIL`
+- `SUPER_ADMIN_PASSWORD`
 
 Admin access:
 
@@ -47,14 +47,7 @@ Admin access:
 - Business admin dashboard: `/#admin`
 - The dashboard changes behavior based on the logged-in role.
 
-Seeded accounts:
-
-- Scalora super admin: `admin@scalora.local` / `Admin123!`
-- Edgard Akar business admin: `admin@edgard-akar.local` / `Admin123!`
-- Marka Store business admin: `admin@marka-store.local` / `Admin123!`
-- Clinic Name business admin: `admin@clinic-name.local` / `Admin123!`
-
-`SUPER_ADMIN` can create and manage all businesses. `BUSINESS_ADMIN` can only manage the assigned business.
+`SUPER_ADMIN` can create and manage all businesses, create business-admin accounts, manage business images, and edit any business availability. `BUSINESS_ADMIN` can only manage the assigned business.
 
 ### Frontend
 
@@ -85,6 +78,10 @@ The frontend runs on `http://localhost:5173`.
 - `POST /api/businesses/{slug}/contact`
 - `GET /api/admin/businesses`
 - `POST /api/admin/businesses`
+- `POST /api/admin/business-admins`
+- `GET /api/admin/availability`
+- `POST /api/admin/availability`
+- `GET /api/businesses/{slug}/availability-slots`
 
 ## Environment
 
@@ -96,6 +93,8 @@ Backend values can be supplied through environment variables:
 - `JWT_SECRET`
 - `JWT_EXPIRATION_MS`
 - `FRONTEND_ORIGIN`
+- `SUPER_ADMIN_EMAIL`
+- `SUPER_ADMIN_PASSWORD`
 
 Frontend:
 

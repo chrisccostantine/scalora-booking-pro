@@ -33,6 +33,8 @@ export const api = {
   getBusiness: (slug) => request(`/businesses/${slug}`),
   getServices: () => request('/services'),
   getBusinessServices: (slug) => request(`/businesses/${slug}/services`),
+  getAvailabilitySlots: (slug, serviceId, date) =>
+    request(`/businesses/${slug}/availability-slots?${new URLSearchParams({ serviceId, date })}`),
   createBooking: (payload) => request('/bookings', { method: 'POST', body: JSON.stringify(payload) }),
   getTestimonials: () => request('/testimonials'),
   getBusinessTestimonials: (slug) => request(`/businesses/${slug}/testimonials`),
@@ -45,6 +47,13 @@ export const api = {
   getAdminBusinesses: () => request('/admin/businesses'),
   createBusiness: (payload) => request('/admin/businesses', { method: 'POST', body: JSON.stringify(payload) }),
   updateBusiness: (id, payload) => request(`/admin/businesses/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  getBusinessAdmins: (businessId) => request(`/admin/business-admins?${new URLSearchParams({ businessId })}`),
+  createBusinessAdmin: (payload) => request('/admin/business-admins', { method: 'POST', body: JSON.stringify(payload) }),
+  getAvailability: (businessId) => request(`/admin/availability?${new URLSearchParams({ businessId })}`),
+  createAvailability: (payload, businessId) =>
+    request(`/admin/availability?${new URLSearchParams({ businessId })}`, { method: 'POST', body: JSON.stringify(payload) }),
+  updateAvailability: (id, payload) => request(`/admin/availability/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteAvailability: (id) => request(`/admin/availability/${id}`, { method: 'DELETE' }),
   getAdminServices: (businessId) => request(`/admin/services?${new URLSearchParams({ businessId })}`),
   getBookings: (params = {}) => request(`/admin/bookings?${new URLSearchParams(params)}`),
   updateBookingStatus: (id, status) =>

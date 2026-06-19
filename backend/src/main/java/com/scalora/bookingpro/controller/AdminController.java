@@ -4,6 +4,10 @@ import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoRequest;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoResponse;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessRequest;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessResponse;
+import com.scalora.bookingpro.dto.AdminDtos.AdminUserRequest;
+import com.scalora.bookingpro.dto.AdminDtos.AdminUserResponse;
+import com.scalora.bookingpro.dto.AdminDtos.AvailabilityRequest;
+import com.scalora.bookingpro.dto.AdminDtos.AvailabilityResponse;
 import com.scalora.bookingpro.dto.AdminDtos.StaffRequest;
 import com.scalora.bookingpro.dto.AdminDtos.StaffResponse;
 import com.scalora.bookingpro.dto.AdminDtos.TestimonialRequest;
@@ -76,6 +80,40 @@ public class AdminController {
     public BusinessResponse updateBusiness(@PathVariable Long id, @Valid @RequestBody BusinessRequest request, Authentication authentication) {
         access.requireSuperAdmin(authentication);
         return content.updateBusiness(id, request);
+    }
+
+    @GetMapping("/business-admins")
+    public List<AdminUserResponse> businessAdmins(@RequestParam(required = false) Long businessId, Authentication authentication) {
+        return content.businessAdmins(access.requiredBusinessScope(authentication, businessId));
+    }
+
+    @PostMapping("/business-admins")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AdminUserResponse createBusinessAdmin(@Valid @RequestBody AdminUserRequest request, Authentication authentication) {
+        access.requireSuperAdmin(authentication);
+        return content.createBusinessAdmin(request);
+    }
+
+    @GetMapping("/availability")
+    public List<AvailabilityResponse> availability(@RequestParam(required = false) Long businessId, Authentication authentication) {
+        return content.availability(access.requiredBusinessScope(authentication, businessId));
+    }
+
+    @PostMapping("/availability")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AvailabilityResponse createAvailability(@RequestParam(required = false) Long businessId, @Valid @RequestBody AvailabilityRequest request, Authentication authentication) {
+        return content.createAvailability(access.requiredBusinessScope(authentication, businessId), request);
+    }
+
+    @PutMapping("/availability/{id}")
+    public AvailabilityResponse updateAvailability(@PathVariable Long id, @Valid @RequestBody AvailabilityRequest request, Authentication authentication) {
+        return content.updateAvailability(id, request, access.currentUser(authentication));
+    }
+
+    @DeleteMapping("/availability/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAvailability(@PathVariable Long id, Authentication authentication) {
+        content.deleteAvailability(id, access.currentUser(authentication));
     }
 
     @GetMapping("/services")

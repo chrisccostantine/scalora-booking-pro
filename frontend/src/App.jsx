@@ -11,7 +11,6 @@ import {
   Phone,
   Plus,
   Save,
-  Scissors,
   ShieldCheck,
   Star,
   Trash2,
@@ -39,12 +38,15 @@ const fallbackBusiness = {
   address: 'Downtown Business District',
   openingHours: 'Mon - Sat, 9:00 AM - 7:00 PM',
   logoUrl: '',
+  coverImageUrl: '',
+  galleryImageUrls: '',
   facebookUrl: 'https://facebook.com',
   instagramUrl: 'https://instagram.com',
   linkedinUrl: 'https://linkedin.com',
 };
 
 const statuses = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'];
+const weekdays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 
 function businessSlugFromPath() {
   const match = window.location.pathname.match(/^\/b\/([^/]+)/);
@@ -195,7 +197,13 @@ function Header({ businessInfo, onNavigate, mobileOpen, setMobileOpen }) {
 function PublicSite({ businessInfo, services, testimonials, businesses, profileSlug, onNavigate }) {
   return (
     <main>
-      <section id="home" className="section min-h-[calc(100vh-72px)] bg-[linear-gradient(110deg,rgba(18,117,111,0.12),rgba(216,95,79,0.08)),url('https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1800&q=80')] bg-cover bg-center">
+      <section
+        id="home"
+        className="section min-h-[calc(100vh-72px)] bg-cover bg-center"
+        style={{
+          backgroundImage: `linear-gradient(110deg,rgba(18,117,111,0.12),rgba(216,95,79,0.08)),url('${businessInfo.coverImageUrl || 'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1800&q=80'}')`,
+        }}
+      >
         <div className="section-inner grid min-h-[72vh] items-center gap-10 lg:grid-cols-[1.08fr_0.92fr]">
           <div className="max-w-3xl">
             <p className="mb-4 inline-flex items-center gap-2 rounded-md bg-white/90 px-3 py-1.5 text-sm font-semibold text-teal">
@@ -211,12 +219,10 @@ function PublicSite({ businessInfo, services, testimonials, businesses, profileS
               <button className="btn-primary" onClick={() => onNavigate('#booking')}>
                 <CalendarCheck size={18} /> Book an Appointment
               </button>
-              <button className="btn-secondary" onClick={() => onNavigate('#services')}>
-                <Scissors size={18} /> View Services
-              </button>
+              <button className="btn-secondary" onClick={() => onNavigate('#services')}>View Services</button>
             </div>
           </div>
-          <BookingForm services={services} compact />
+          <BookingForm services={services} profileSlug={profileSlug} compact />
         </div>
       </section>
 
@@ -251,7 +257,7 @@ function PublicSite({ businessInfo, services, testimonials, businesses, profileS
             <h2 className="mt-3 text-3xl font-bold">Reserve a time in under a minute.</h2>
             <p className="mt-4 text-graphite">The API prevents duplicate appointments for the same service, date, and time, then stores each booking with a lifecycle status.</p>
           </div>
-          <BookingForm services={services} />
+          <BookingForm services={services} profileSlug={profileSlug} />
         </div>
       </section>
       <TestimonialsSection testimonials={testimonials} />
@@ -312,7 +318,7 @@ function ServicesSection({ services }) {
   );
 }
 
-function BookingForm({ services, compact = false }) {
+function BookingForm({ services, profileSlug, compact = false }) {
   const [form, setForm] = useState({
     serviceId: services[0]?.id || '',
     appointmentDate: '',
@@ -324,10 +330,26 @@ function BookingForm({ services, compact = false }) {
   });
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [slots, setSlots] = useState([]);
 
   useEffect(() => {
     if (!form.serviceId && services[0]?.id) setForm((current) => ({ ...current, serviceId: services[0].id }));
   }, [services, form.serviceId]);
+
+  useEffect(() => {
+    if (!profileSlug || !form.serviceId || !form.appointmentDate) {
+      setSlots([]);
+      return;
+    }
+    api.getAvailabilitySlots(profileSlug, form.serviceId, form.appointmentDate)
+      .then((items) => {
+        setSlots(items);
+        if (!items.some((slot) => slot.time === form.appointmentTime)) {
+          setForm((current) => ({ ...current, appointmentTime: items[0]?.time || '' }));
+        }
+      })
+      .catch(() => setSlots([]));
+  }, [profileSlug, form.serviceId, form.appointmentDate]);
 
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
 
@@ -367,7 +389,12 @@ function BookingForm({ services, compact = false }) {
         </div>
         <div>
           <label htmlFor="time">Time</label>
-          <input id="time" type="time" value={form.appointmentTime} onChange={(event) => update('appointmentTime', event.target.value)} required />
+          <select id="time" value={form.appointmentTime} onChange={(event) => update('appointmentTime', event.target.value)} required>
+            <option value="">Select time</option>
+            {slots.map((slot) => (
+              <option key={slot.time} value={slot.time}>{slot.time} ({slot.remaining} left)</option>
+            ))}
+          </select>
         </div>
         <div>
           <label htmlFor="name">Name</label>
@@ -477,7 +504,7 @@ function ContactSection({ businessInfo, profileSlug }) {
 }
 
 function AdminLogin({ setToken, setAdminUser }) {
-  const [form, setForm] = useState({ email: 'admin@scalora.local', password: 'Admin123!' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
   const submit = async (event) => {
@@ -526,8 +553,12 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
   const [bookings, setBookings] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
   const [staff, setStaff] = useState([]);
+  const [businessAdmins, setBusinessAdmins] = useState([]);
+  const [availability, setAvailability] = useState([]);
   const [selectedBusinessId, setSelectedBusinessId] = useState('');
   const [businessDraft, setBusinessDraft] = useState({ name: '', slug: '', tagline: '', active: true });
+  const [adminDraft, setAdminDraft] = useState({ email: '', password: '' });
+  const [availabilityDraft, setAvailabilityDraft] = useState({ dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '17:00', capacity: 1, active: true });
   const [filters, setFilters] = useState({ status: '', date: '', serviceId: '' });
   const [serviceDraft, setServiceDraft] = useState({ name: '', description: '', durationMinutes: 60, price: 80, active: true });
   const [staffDraft, setStaffDraft] = useState({ name: '', role: '', email: '', phoneNumber: '', active: true });
@@ -550,6 +581,8 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
     api.getAdminServices(selectedBusinessId).then(setServices).catch(() => {});
     api.getAdminTestimonials(selectedBusinessId).then(setTestimonials).catch(() => {});
     api.getAdminBusinessInfo(selectedBusinessId).then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
+    api.getBusinessAdmins(selectedBusinessId).then(setBusinessAdmins).catch(() => setBusinessAdmins([]));
+    api.getAvailability(selectedBusinessId).then(setAvailability).catch(() => setAvailability([]));
   };
 
   useEffect(loadAdminData, [filters.status, filters.date, filters.serviceId, selectedBusinessId]);
@@ -597,6 +630,17 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
     setBusinesses((current) => [...current, created]);
     setSelectedBusinessId(String(created.id));
     setBusinessDraft({ name: '', slug: '', tagline: '', active: true });
+  };
+
+  const saveBusinessAdmin = async () => {
+    const created = await api.createBusinessAdmin({ ...adminDraft, businessId: Number(selectedBusinessId) });
+    setBusinessAdmins((current) => [...current, created]);
+    setAdminDraft({ email: '', password: '' });
+  };
+
+  const saveAvailability = async () => {
+    const created = await api.createAvailability({ ...availabilityDraft, capacity: Number(availabilityDraft.capacity) }, selectedBusinessId);
+    setAvailability((current) => [...current, created]);
   };
 
   return (
@@ -682,6 +726,31 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
         </section>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-3">
+          {isSuperAdmin && (
+            <Manager title="Business Admins" icon={Users} onSave={saveBusinessAdmin}>
+              <input placeholder="Admin email" type="email" value={adminDraft.email} onChange={(event) => setAdminDraft({ ...adminDraft, email: event.target.value })} />
+              <input placeholder="Temporary password" type="password" value={adminDraft.password} onChange={(event) => setAdminDraft({ ...adminDraft, password: event.target.value })} />
+              <MiniList items={businessAdmins} label={(item) => `${item.email} - ${item.businessName || 'Business admin'}`} />
+            </Manager>
+          )}
+
+          <Manager title="Availability" icon={CalendarCheck} onSave={saveAvailability}>
+            <select value={availabilityDraft.dayOfWeek} onChange={(event) => setAvailabilityDraft({ ...availabilityDraft, dayOfWeek: event.target.value })}>
+              {weekdays.map((day) => <option key={day} value={day}>{day}</option>)}
+            </select>
+            <div className="grid grid-cols-3 gap-3">
+              <input type="time" value={availabilityDraft.startTime} onChange={(event) => setAvailabilityDraft({ ...availabilityDraft, startTime: event.target.value })} />
+              <input type="time" value={availabilityDraft.endTime} onChange={(event) => setAvailabilityDraft({ ...availabilityDraft, endTime: event.target.value })} />
+              <input type="number" min="1" value={availabilityDraft.capacity} onChange={(event) => setAvailabilityDraft({ ...availabilityDraft, capacity: event.target.value })} />
+            </div>
+            <MiniList
+              items={availability}
+              label={(item) => `${item.dayOfWeek} ${item.startTime}-${item.endTime} cap ${item.capacity}`}
+              onEdit={(item) => setAvailabilityDraft({ dayOfWeek: item.dayOfWeek, startTime: item.startTime, endTime: item.endTime, capacity: item.capacity, active: item.active })}
+              onDelete={async (id) => { await api.deleteAvailability(id); setAvailability((current) => current.filter((item) => item.id !== id)); }}
+            />
+          </Manager>
+
           <Manager title="Services" icon={Edit3} draft={serviceDraft} setDraft={setServiceDraft} onSave={saveService}>
             <input placeholder="Service name" value={serviceDraft.name} onChange={(event) => setServiceDraft({ ...serviceDraft, name: event.target.value })} />
             <textarea placeholder="Description" value={serviceDraft.description} onChange={(event) => setServiceDraft({ ...serviceDraft, description: event.target.value })} />
@@ -805,10 +874,12 @@ function MiniList({ items, label, onEdit, onDelete }) {
       {items.map((item) => (
         <div key={item.id} className="flex items-center justify-between gap-3 border-b border-line px-3 py-2 text-sm last:border-0">
           <span className="truncate">{label(item)}</span>
-          <span className="flex items-center gap-2">
-            <button className="text-teal" onClick={() => onEdit(item)} aria-label="Edit item"><Edit3 size={16} /></button>
-            <button className="text-coral" onClick={() => onDelete(item.id)} aria-label="Delete item"><Trash2 size={16} /></button>
-          </span>
+          {(onEdit || onDelete) && (
+            <span className="flex items-center gap-2">
+              {onEdit && <button className="text-teal" onClick={() => onEdit(item)} aria-label="Edit item"><Edit3 size={16} /></button>}
+              {onDelete && <button className="text-coral" onClick={() => onDelete(item.id)} aria-label="Delete item"><Trash2 size={16} /></button>}
+            </span>
+          )}
         </div>
       ))}
     </div>

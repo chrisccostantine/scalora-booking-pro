@@ -4,6 +4,7 @@ import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoResponse;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessResponse;
 import com.scalora.bookingpro.dto.AdminDtos.StaffResponse;
 import com.scalora.bookingpro.dto.AdminDtos.TestimonialResponse;
+import com.scalora.bookingpro.dto.BookingDtos.AvailabilitySlotResponse;
 import com.scalora.bookingpro.dto.BookingDtos.BookingRequest;
 import com.scalora.bookingpro.dto.BookingDtos.BookingResponse;
 import com.scalora.bookingpro.dto.ContactDtos.ContactRequest;
@@ -15,7 +16,9 @@ import com.scalora.bookingpro.service.ContactService;
 import com.scalora.bookingpro.service.ServiceCatalogService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.time.LocalDate;
 import org.springframework.http.HttpStatus;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -56,6 +59,16 @@ public class PublicController {
     @GetMapping("/businesses/{slug}/staff")
     public List<StaffResponse> businessStaff(@PathVariable String slug) {
         return content.publicStaff(slug);
+    }
+
+    @GetMapping("/businesses/{slug}/availability-slots")
+    public List<AvailabilitySlotResponse> availabilitySlots(
+        @PathVariable String slug,
+        @RequestParam Long serviceId,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        content.businessBySlug(slug);
+        return bookings.availableSlots(serviceId, date);
     }
 
     @PostMapping("/bookings")

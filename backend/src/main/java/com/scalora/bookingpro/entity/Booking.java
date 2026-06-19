@@ -6,10 +6,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 @Entity
-@Table(
-    name = "bookings",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"service_id", "appointment_date", "appointment_time"})
-)
+@Table(name = "bookings")
 public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

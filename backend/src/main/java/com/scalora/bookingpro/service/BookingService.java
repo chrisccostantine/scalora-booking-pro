@@ -1,16 +1,20 @@
 package com.scalora.bookingpro.service;
 
+import com.scalora.bookingpro.dto.BookingDtos.AvailabilitySlotResponse;
 import com.scalora.bookingpro.dto.BookingDtos.BookingRequest;
 import com.scalora.bookingpro.dto.BookingDtos.BookingResponse;
 import com.scalora.bookingpro.entity.Booking;
 import com.scalora.bookingpro.entity.BookingStatus;
+import com.scalora.bookingpro.entity.BusinessAvailability;
 import com.scalora.bookingpro.entity.Role;
 import com.scalora.bookingpro.entity.User;
 import com.scalora.bookingpro.exception.ApiException;
+import com.scalora.bookingpro.repository.BusinessAvailabilityRepository;
 import com.scalora.bookingpro.repository.BookingRepository;
 import com.scalora.bookingpro.repository.ServiceRepository;
 import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.jpa.domain.Specification;
@@ -22,10 +26,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class BookingService {
     private final BookingRepository bookings;
     private final ServiceRepository services;
+    private final BusinessAvailabilityRepository availability;
 
-    public BookingService(BookingRepository bookings, ServiceRepository services) {
+    public BookingService(BookingRepository bookings, ServiceRepository services, BusinessAvailabilityRepository availability) {
         this.bookings = bookings;
         this.services = services;
+        this.availability = availability;
     }
 
     @Transactional
@@ -35,13 +41,15 @@ public class BookingService {
         if (!service.isActive()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Service is not available for booking.");
         }
-        boolean taken = bookings.existsByServiceIdAndAppointmentDateAndAppointmentTime(
-            request.serviceId(),
+        BusinessAvailability window = matchingAvailability(service.getBusiness().getId(), request.appointmentDate(), request.appointmentTime(), service.getDurationMinutes());
+        long booked = bookings.countByServiceBusinessIdAndAppointmentDateAndAppointmentTimeAndStatusNot(
+            service.getBusiness().getId(),
             request.appointmentDate(),
-            request.appointmentTime()
+            request.appointmentTime(),
+            BookingStatus.CANCELLED
         );
-        if (taken) {
-            throw new ApiException(HttpStatus.CONFLICT, "This time slot is already booked.");
+        if (booked >= window.getCapacity()) {
+            throw new ApiException(HttpStatus.CONFLICT, "This time slot is fully booked.");
         }
 
         Booking booking = new Booking();
@@ -54,6 +62,33 @@ public class BookingService {
         booking.setNotes(request.notes());
         booking.setStatus(BookingStatus.PENDING);
         return toResponse(bookings.save(booking));
+    }
+
+    public List<AvailabilitySlotResponse> availableSlots(Long serviceId, LocalDate date) {
+        var service = services.findById(serviceId)
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Service not found"));
+        List<AvailabilitySlotResponse> slots = new ArrayList<>();
+        List<BusinessAvailability> windows = availability.findByBusinessIdAndDayOfWeekAndActiveTrueOrderByStartTimeAsc(
+            service.getBusiness().getId(),
+            date.getDayOfWeek()
+        );
+        for (BusinessAvailability window : windows) {
+            LocalTime time = window.getStartTime();
+            while (!time.plusMinutes(service.getDurationMinutes()).isAfter(window.getEndTime())) {
+                long booked = bookings.countByServiceBusinessIdAndAppointmentDateAndAppointmentTimeAndStatusNot(
+                    service.getBusiness().getId(),
+                    date,
+                    time,
+                    BookingStatus.CANCELLED
+                );
+                long remaining = Math.max(0, window.getCapacity() - booked);
+                if (remaining > 0) {
+                    slots.add(new AvailabilitySlotResponse(time, window.getCapacity(), booked, remaining));
+                }
+                time = time.plusMinutes(service.getDurationMinutes());
+            }
+        }
+        return slots;
     }
 
     public List<BookingResponse> findAdmin(Long businessId, BookingStatus status, LocalDate date, Long serviceId) {
@@ -103,5 +138,13 @@ public class BookingService {
             booking.getStatus(),
             booking.getCreatedAt()
         );
+    }
+
+    private BusinessAvailability matchingAvailability(Long businessId, LocalDate date, LocalTime time, Integer durationMinutes) {
+        return availability.findByBusinessIdAndDayOfWeekAndActiveTrueOrderByStartTimeAsc(businessId, date.getDayOfWeek()).stream()
+            .filter(window -> !time.isBefore(window.getStartTime()))
+            .filter(window -> !time.plusMinutes(durationMinutes).isAfter(window.getEndTime()))
+            .findFirst()
+            .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "Selected time is outside business availability."));
     }
 }

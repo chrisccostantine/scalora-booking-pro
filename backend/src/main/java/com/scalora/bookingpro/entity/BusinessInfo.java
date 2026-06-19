@@ -13,6 +13,9 @@ public class BusinessInfo {
     private Business business;
     private String businessName;
     private String logoUrl;
+    private String coverImageUrl;
+    @Column(length = 2000)
+    private String galleryImageUrls;
     private String phoneNumber;
     private String whatsappNumber;
     private String address;
@@ -30,6 +33,10 @@ public class BusinessInfo {
     public void setBusinessName(String businessName) { this.businessName = businessName; }
     public String getLogoUrl() { return logoUrl; }
     public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
+    public String getCoverImageUrl() { return coverImageUrl; }
+    public void setCoverImageUrl(String coverImageUrl) { this.coverImageUrl = coverImageUrl; }
+    public String getGalleryImageUrls() { return galleryImageUrls; }
+    public void setGalleryImageUrls(String galleryImageUrls) { this.galleryImageUrls = galleryImageUrls; }
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
     public String getWhatsappNumber() { return whatsappNumber; }

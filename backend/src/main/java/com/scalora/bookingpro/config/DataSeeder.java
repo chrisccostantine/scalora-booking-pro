@@ -2,10 +2,11 @@ package com.scalora.bookingpro.config;
 
 import com.scalora.bookingpro.entity.*;
 import com.scalora.bookingpro.repository.*;
-import java.math.BigDecimal;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
@@ -18,126 +19,89 @@ public class DataSeeder {
         TestimonialRepository testimonials,
         BusinessInfoRepository businessInfo,
         BusinessRepository businesses,
-        PasswordEncoder encoder
+        PasswordEncoder encoder,
+        JdbcTemplate jdbc,
+        @Value("${app.super-admin.email:admin@scalora.local}") String superAdminEmail,
+        @Value("${app.super-admin.password:}") String superAdminPassword
     ) {
         return args -> {
-            if (!users.existsByEmail("admin@scalora.local")) {
-                User admin = new User();
-                admin.setEmail("admin@scalora.local");
-                admin.setPasswordHash(encoder.encode("Admin123!"));
-                admin.setRole(Role.SUPER_ADMIN);
-                users.save(admin);
+            dropLegacyBookingUniqueConstraint(jdbc);
+
+            String password = superAdminPassword == null || superAdminPassword.isBlank()
+                ? "ChangeMeBeforeProduction123!"
+                : superAdminPassword;
+
+            User admin = users.findByEmail(superAdminEmail).orElseGet(User::new);
+            admin.setEmail(superAdminEmail);
+            admin.setPasswordHash(encoder.encode(password));
+            admin.setRole(Role.SUPER_ADMIN);
+            admin.setBusiness(null);
+            users.save(admin);
+
+            if (!"admin@scalora.local".equalsIgnoreCase(superAdminEmail)) {
+                deleteDemoAccount(users, "admin@scalora.local");
             }
+            deleteDemoAccount(users, "admin@edgard-akar.local");
+            deleteDemoAccount(users, "admin@marka-store.local");
+            deleteDemoAccount(users, "admin@clinic-name.local");
 
-            Business edgard = businesses.findBySlug("edgard-akar").orElseGet(() -> businesses.save(business("Edgard Akar", "edgard-akar", "Premium appointments for personal services.")));
-            Business marka = businesses.findBySlug("marka-store").orElseGet(() -> businesses.save(business("Marka Store", "marka-store", "Retail consultations and customer appointments.")));
-            Business clinic = businesses.findBySlug("clinic-name").orElseGet(() -> businesses.save(business("Clinic Name", "clinic-name", "Modern clinic scheduling and patient visits.")));
-
-            services.findAll().stream()
-                .filter(service -> service.getBusiness() == null)
-                .forEach(service -> {
-                    service.setBusiness(edgard);
-                    services.save(service);
-                });
-            staff.findAll().stream()
-                .filter(member -> member.getBusiness() == null)
-                .forEach(member -> {
-                    member.setBusiness(edgard);
-                    staff.save(member);
-                });
-            testimonials.findAll().stream()
-                .filter(testimonial -> testimonial.getBusiness() == null)
-                .forEach(testimonial -> {
-                    testimonial.setBusiness(edgard);
-                    testimonials.save(testimonial);
-                });
-            businessInfo.findAll().stream()
-                .filter(info -> info.getBusiness() == null)
-                .forEach(info -> {
-                    info.setBusiness(edgard);
-                    businessInfo.save(info);
-                });
-
-            seedBusinessAdmin(users, encoder, edgard, "admin@edgard-akar.local");
-            seedBusinessAdmin(users, encoder, marka, "admin@marka-store.local");
-            seedBusinessAdmin(users, encoder, clinic, "admin@clinic-name.local");
-
-            if (services.count() == 0) {
-                services.save(service(edgard, "Signature Consultation", "A focused intake and tailored service plan.", 45, "65.00"));
-                services.save(service(edgard, "Premium Service Session", "The core appointment package for high-value clients.", 60, "95.00"));
-                services.save(service(marka, "Personal Shopping Session", "A guided product selection appointment.", 40, "35.00"));
-                services.save(service(clinic, "Initial Clinic Visit", "A structured first appointment with the care team.", 50, "75.00"));
-            }
-
-            if (staff.count() == 0) {
-                Staff lead = new Staff();
-                lead.setBusiness(edgard);
-                lead.setName("Alex Morgan");
-                lead.setRole("Lead Specialist");
-                lead.setEmail("alex@scalora.local");
-                lead.setPhoneNumber("+1 555 0111");
-                staff.save(lead);
-            }
-
-            if (testimonials.count() == 0) {
-                testimonials.save(testimonial(edgard, "Maya R.", "The booking experience felt effortless, and the reminder flow reduced no-shows immediately.", 5));
-                testimonials.save(testimonial(marka, "Daniel K.", "Our team can finally manage appointments without spreadsheets or missed calls.", 5));
-                testimonials.save(testimonial(clinic, "Nour A.", "Clean, fast, and professional enough to use for multiple service brands.", 5));
-            }
-
-            if (businessInfo.findByBusinessId(edgard.getId()).isEmpty()) {
-                BusinessInfo info = new BusinessInfo();
-                info.setBusiness(edgard);
-                info.setBusinessName("Edgard Akar");
-                info.setPhoneNumber("+1 555 0199");
-                info.setWhatsappNumber("+15550199");
-                info.setAddress("Downtown Business District");
-                info.setOpeningHours("Mon - Sat, 9:00 AM - 7:00 PM");
-                info.setFacebookUrl("https://facebook.com");
-                info.setInstagramUrl("https://instagram.com");
-                info.setLinkedinUrl("https://linkedin.com");
-                businessInfo.save(info);
+            Business fallback = businesses.findBySlug("edgard-akar").orElseGet(() -> businesses.findAll().stream().findFirst().orElse(null));
+            if (fallback != null) {
+                services.findAll().stream()
+                    .filter(service -> service.getBusiness() == null)
+                    .forEach(service -> {
+                        service.setBusiness(fallback);
+                        services.save(service);
+                    });
+                staff.findAll().stream()
+                    .filter(member -> member.getBusiness() == null)
+                    .forEach(member -> {
+                        member.setBusiness(fallback);
+                        staff.save(member);
+                    });
+                testimonials.findAll().stream()
+                    .filter(testimonial -> testimonial.getBusiness() == null)
+                    .forEach(testimonial -> {
+                        testimonial.setBusiness(fallback);
+                        testimonials.save(testimonial);
+                    });
+                businessInfo.findAll().stream()
+                    .filter(info -> info.getBusiness() == null)
+                    .forEach(info -> {
+                        info.setBusiness(fallback);
+                        businessInfo.save(info);
+                    });
             }
         };
     }
 
-    private Business business(String name, String slug, String tagline) {
-        Business business = new Business();
-        business.setName(name);
-        business.setSlug(slug);
-        business.setTagline(tagline);
-        business.setActive(true);
-        return business;
+    private void deleteDemoAccount(UserRepository users, String email) {
+        users.findByEmail(email).ifPresent(users::delete);
     }
 
-    private void seedBusinessAdmin(UserRepository users, PasswordEncoder encoder, Business business, String email) {
-        if (users.existsByEmail(email)) return;
-        User user = new User();
-        user.setEmail(email);
-        user.setPasswordHash(encoder.encode("Admin123!"));
-        user.setRole(Role.BUSINESS_ADMIN);
-        user.setBusiness(business);
-        users.save(user);
-    }
-
-    private ServiceEntity service(Business business, String name, String description, int minutes, String price) {
-        ServiceEntity service = new ServiceEntity();
-        service.setBusiness(business);
-        service.setName(name);
-        service.setDescription(description);
-        service.setDurationMinutes(minutes);
-        service.setPrice(new BigDecimal(price));
-        service.setActive(true);
-        return service;
-    }
-
-    private Testimonial testimonial(Business business, String customerName, String content, int rating) {
-        Testimonial testimonial = new Testimonial();
-        testimonial.setBusiness(business);
-        testimonial.setCustomerName(customerName);
-        testimonial.setContent(content);
-        testimonial.setRating(rating);
-        testimonial.setActive(true);
-        return testimonial;
+    private void dropLegacyBookingUniqueConstraint(JdbcTemplate jdbc) {
+        try {
+            jdbc.execute("""
+                DO $$
+                DECLARE constraint_name text;
+                BEGIN
+                  FOR constraint_name IN
+                    SELECT con.conname
+                    FROM pg_constraint con
+                    JOIN pg_class rel ON rel.oid = con.conrelid
+                    JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+                    WHERE rel.relname = 'bookings'
+                      AND con.contype = 'u'
+                      AND pg_get_constraintdef(con.oid) LIKE '%service_id%'
+                      AND pg_get_constraintdef(con.oid) LIKE '%appointment_date%'
+                      AND pg_get_constraintdef(con.oid) LIKE '%appointment_time%'
+                  LOOP
+                    EXECUTE format('ALTER TABLE bookings DROP CONSTRAINT IF EXISTS %I', constraint_name);
+                  END LOOP;
+                END $$;
+                """);
+        } catch (Exception ignored) {
+            // Non-PostgreSQL local databases do not support DO blocks.
+        }
     }
 }

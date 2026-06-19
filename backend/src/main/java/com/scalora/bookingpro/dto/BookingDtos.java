@@ -35,4 +35,5 @@ public class BookingDtos {
     ) {}
 
     public record StatusUpdateRequest(@NotNull BookingStatus status) {}
+    public record AvailabilitySlotResponse(LocalTime time, Integer capacity, Long booked, Long remaining) {}
 }
