@@ -68,7 +68,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource(@Value("${app.cors.frontend-origin}") String frontendOrigin) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(Arrays.stream(frontendOrigin.split(",")).map(String::trim).toList());
+        config.setAllowedOriginPatterns(
+            "*".equals(frontendOrigin.trim())
+                ? List.of("*")
+                : Arrays.stream(frontendOrigin.split(",")).map(String::trim).toList()
+        );
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(false);
