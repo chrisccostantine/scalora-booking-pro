@@ -28,6 +28,11 @@ async function request(path, options = {}) {
   return response.json();
 }
 
+function scopedPath(path, businessId) {
+  if (!businessId) return path;
+  return `${path}?${new URLSearchParams({ businessId })}`;
+}
+
 export const api = {
   getBusinesses: async () => {
     try {
@@ -86,31 +91,31 @@ export const api = {
   deleteBusiness: (id) => request(`/admin/businesses/${id}`, { method: 'DELETE' }),
   getBusinessAdmins: (businessId) => request(`/admin/business-admins?${new URLSearchParams({ businessId })}`),
   createBusinessAdmin: (payload) => request('/admin/business-admins', { method: 'POST', body: JSON.stringify(payload) }),
-  getAvailability: (businessId) => request(`/admin/availability?${new URLSearchParams({ businessId })}`),
+  getAvailability: (businessId) => request(scopedPath('/admin/availability', businessId)),
   createAvailability: (payload, businessId) =>
-    request(`/admin/availability?${new URLSearchParams({ businessId })}`, { method: 'POST', body: JSON.stringify(payload) }),
+    request(scopedPath('/admin/availability', businessId), { method: 'POST', body: JSON.stringify(payload) }),
   updateAvailability: (id, payload) => request(`/admin/availability/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteAvailability: (id) => request(`/admin/availability/${id}`, { method: 'DELETE' }),
-  getAdminServices: (businessId) => request(`/admin/services?${new URLSearchParams({ businessId })}`),
+  getAdminServices: (businessId) => request(scopedPath('/admin/services', businessId)),
   getBookings: (params = {}) => request(`/admin/bookings?${new URLSearchParams(params)}`),
   updateBookingStatus: (id, status) =>
     request(`/admin/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   createService: (payload, businessId) =>
-    request(`/admin/services?${new URLSearchParams({ businessId })}`, { method: 'POST', body: JSON.stringify(payload) }),
+    request(scopedPath('/admin/services', businessId), { method: 'POST', body: JSON.stringify(payload) }),
   updateService: (id, payload) => request(`/admin/services/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteService: (id) => request(`/admin/services/${id}`, { method: 'DELETE' }),
-  getStaff: (businessId) => request(`/admin/staff?${new URLSearchParams({ businessId })}`),
+  getStaff: (businessId) => request(scopedPath('/admin/staff', businessId)),
   createStaff: (payload, businessId) =>
-    request(`/admin/staff?${new URLSearchParams({ businessId })}`, { method: 'POST', body: JSON.stringify(payload) }),
+    request(scopedPath('/admin/staff', businessId), { method: 'POST', body: JSON.stringify(payload) }),
   updateStaff: (id, payload) => request(`/admin/staff/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteStaff: (id) => request(`/admin/staff/${id}`, { method: 'DELETE' }),
-  getAdminTestimonials: (businessId) => request(`/admin/testimonials?${new URLSearchParams({ businessId })}`),
+  getAdminTestimonials: (businessId) => request(scopedPath('/admin/testimonials', businessId)),
   createTestimonial: (payload, businessId) =>
-    request(`/admin/testimonials?${new URLSearchParams({ businessId })}`, { method: 'POST', body: JSON.stringify(payload) }),
+    request(scopedPath('/admin/testimonials', businessId), { method: 'POST', body: JSON.stringify(payload) }),
   updateTestimonial: (id, payload) =>
     request(`/admin/testimonials/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteTestimonial: (id) => request(`/admin/testimonials/${id}`, { method: 'DELETE' }),
-  getAdminBusinessInfo: (businessId) => request(`/admin/business-info?${new URLSearchParams({ businessId })}`),
+  getAdminBusinessInfo: (businessId) => request(scopedPath('/admin/business-info', businessId)),
   updateBusinessInfo: (payload, businessId) =>
-    request(`/admin/business-info?${new URLSearchParams({ businessId })}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    request(scopedPath('/admin/business-info', businessId), { method: 'PUT', body: JSON.stringify(payload) }),
 };

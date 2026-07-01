@@ -1503,29 +1503,33 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
   const [editingStaffId, setEditingStaffId] = useState(null);
   const [editingTestimonialId, setEditingTestimonialId] = useState(null);
   const [editingAvailabilityId, setEditingAvailabilityId] = useState(null);
+  const [adminMessage, setAdminMessage] = useState('');
+  const [adminError, setAdminError] = useState('');
   const isSuperAdmin = adminUser?.role === 'SUPER_ADMIN' || adminUser?.role === 'ADMIN';
+  const managedBusinessId = selectedBusinessId || (adminUser?.businessId ? String(adminUser.businessId) : '');
 
   const loadAdminData = () => {
     api.getAdminBusinesses().then((items) => {
       setBusinesses(items);
-      if (!selectedBusinessId && items[0]?.id) setSelectedBusinessId(String(items[0].id));
+      if (!selectedBusinessId && adminUser?.businessId) setSelectedBusinessId(String(adminUser.businessId));
+      if (!selectedBusinessId && !adminUser?.businessId && items[0]?.id) setSelectedBusinessId(String(items[0].id));
     }).catch(() => {});
-    if (!selectedBusinessId) return;
+    if (!managedBusinessId) return;
     if (isSuperAdmin) {
-      api.getAdminBusinessInfo(selectedBusinessId).then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
+      api.getAdminBusinessInfo(managedBusinessId).then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
       return;
     }
-    const scope = { ...filters, businessId: selectedBusinessId };
+    const scope = { ...filters, businessId: managedBusinessId };
     api.getBookings(scope).then(setBookings).catch(() => setBookings([]));
-    api.getBookings({ businessId: selectedBusinessId }).then(setAllBookings).catch(() => setAllBookings([]));
-    api.getStaff(selectedBusinessId).then(setStaff).catch(() => setStaff([]));
-    api.getAdminServices(selectedBusinessId).then(setServices).catch(() => {});
-    api.getAdminTestimonials(selectedBusinessId).then(setTestimonials).catch(() => {});
-    api.getAdminBusinessInfo(selectedBusinessId).then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
-    api.getAvailability(selectedBusinessId).then(setAvailability).catch(() => setAvailability([]));
+    api.getBookings({ businessId: managedBusinessId }).then(setAllBookings).catch(() => setAllBookings([]));
+    api.getStaff(managedBusinessId).then(setStaff).catch(() => setStaff([]));
+    api.getAdminServices(managedBusinessId).then(setServices).catch(() => {});
+    api.getAdminTestimonials(managedBusinessId).then(setTestimonials).catch(() => {});
+    api.getAdminBusinessInfo(managedBusinessId).then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
+    api.getAvailability(managedBusinessId).then(setAvailability).catch(() => setAvailability([]));
   };
 
-  useEffect(loadAdminData, [filters.status, filters.date, filters.serviceId, selectedBusinessId, isSuperAdmin]);
+  useEffect(loadAdminData, [filters.status, filters.date, filters.serviceId, selectedBusinessId, adminUser?.businessId, isSuperAdmin]);
 
   const stats = useMemo(() => ({
     total: allBookings.length,
@@ -1543,26 +1547,71 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
   };
 
   const saveService = async () => {
-    const payload = { ...serviceDraft, price: Number(serviceDraft.price), durationMinutes: Number(serviceDraft.durationMinutes) };
-    const saved = editingServiceId ? await api.updateService(editingServiceId, payload) : await api.createService(payload, selectedBusinessId);
-    setServices((current) => editingServiceId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
-    setEditingServiceId(null);
-    setServiceDraft({ name: '', description: '', durationMinutes: 60, price: 80, active: true });
+    setAdminError('');
+    setAdminMessage('');
+    if (!managedBusinessId && !editingServiceId) {
+      setAdminError('Your business account is not assigned to a business yet.');
+      return;
+    }
+    if (!serviceDraft.name.trim()) {
+      setAdminError('Service name is required.');
+      return;
+    }
+    if (Number(serviceDraft.durationMinutes) < 1 || Number.isNaN(Number(serviceDraft.durationMinutes))) {
+      setAdminError('Service duration must be at least 1 minute.');
+      return;
+    }
+    if (Number(serviceDraft.price) < 0 || Number.isNaN(Number(serviceDraft.price))) {
+      setAdminError('Service price must be 0 or more.');
+      return;
+    }
+    try {
+      const payload = { ...serviceDraft, price: Number(serviceDraft.price), durationMinutes: Number(serviceDraft.durationMinutes) };
+      const saved = editingServiceId ? await api.updateService(editingServiceId, payload) : await api.createService(payload, managedBusinessId);
+      setServices((current) => editingServiceId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
+      setEditingServiceId(null);
+      setServiceDraft({ name: '', description: '', durationMinutes: 60, price: 80, active: true });
+      setAdminMessage('Service saved.');
+    } catch (error) {
+      setAdminError(error.message || 'Could not save service.');
+    }
   };
 
   const saveStaff = async () => {
-    const saved = editingStaffId ? await api.updateStaff(editingStaffId, staffDraft) : await api.createStaff(staffDraft, selectedBusinessId);
-    setStaff((current) => editingStaffId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
-    setEditingStaffId(null);
-    setStaffDraft({ name: '', role: '', email: '', phoneNumber: '', active: true });
+    setAdminError('');
+    setAdminMessage('');
+    if (!managedBusinessId && !editingStaffId) {
+      setAdminError('Your business account is not assigned to a business yet.');
+      return;
+    }
+    if (!staffDraft.name.trim() || !staffDraft.role.trim()) {
+      setAdminError('Staff name and role are required.');
+      return;
+    }
+    try {
+      const saved = editingStaffId ? await api.updateStaff(editingStaffId, staffDraft) : await api.createStaff(staffDraft, managedBusinessId);
+      setStaff((current) => editingStaffId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
+      setEditingStaffId(null);
+      setStaffDraft({ name: '', role: '', email: '', phoneNumber: '', active: true });
+      setAdminMessage('Staff member saved.');
+    } catch (error) {
+      setAdminError(error.message || 'Could not save staff member.');
+    }
   };
 
   const saveTestimonial = async () => {
-    const payload = { ...testimonialDraft, rating: Number(testimonialDraft.rating) };
-    const saved = editingTestimonialId ? await api.updateTestimonial(editingTestimonialId, payload) : await api.createTestimonial(payload, selectedBusinessId);
-    setTestimonials((current) => editingTestimonialId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
-    setEditingTestimonialId(null);
-    setTestimonialDraft({ customerName: '', content: '', rating: 5, active: true });
+    setAdminError('');
+    setAdminMessage('');
+    try {
+      const payload = { ...testimonialDraft, rating: Number(testimonialDraft.rating) };
+      const saved = editingTestimonialId ? await api.updateTestimonial(editingTestimonialId, payload) : await api.createTestimonial(payload, managedBusinessId);
+      setTestimonials((current) => editingTestimonialId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
+      setEditingTestimonialId(null);
+      setTestimonialDraft({ customerName: '', content: '', rating: 5, active: true });
+      setAdminMessage('Testimonial saved.');
+    } catch (error) {
+      setAdminError(error.message || 'Could not save testimonial.');
+    }
   };
 
   const saveBusiness = async () => {
@@ -1628,15 +1677,22 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
   };
 
   const saveAvailability = async () => {
-    const payload = { ...availabilityDraft, capacity: Number(availabilityDraft.capacity) };
-    const saved = editingAvailabilityId
-      ? await api.updateAvailability(editingAvailabilityId, payload)
-      : await api.createAvailability(payload, selectedBusinessId);
-    setAvailability((current) => editingAvailabilityId
-      ? current.map((item) => (item.id === saved.id ? saved : item))
-      : [...current, saved]);
-    setEditingAvailabilityId(null);
-    setAvailabilityDraft({ dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '17:00', capacity: 1, active: true });
+    setAdminError('');
+    setAdminMessage('');
+    try {
+      const payload = { ...availabilityDraft, capacity: Number(availabilityDraft.capacity) };
+      const saved = editingAvailabilityId
+        ? await api.updateAvailability(editingAvailabilityId, payload)
+        : await api.createAvailability(payload, managedBusinessId);
+      setAvailability((current) => editingAvailabilityId
+        ? current.map((item) => (item.id === saved.id ? saved : item))
+        : [...current, saved]);
+      setEditingAvailabilityId(null);
+      setAvailabilityDraft({ dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '17:00', capacity: 1, active: true });
+      setAdminMessage('Availability saved.');
+    } catch (error) {
+      setAdminError(error.message || 'Could not save availability.');
+    }
   };
 
   if (isSuperAdmin) {
@@ -1677,11 +1733,14 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
           </div>
         )}
 
+        {adminError && <p className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{adminError}</p>}
+        {adminMessage && <p className="mt-4 rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{adminMessage}</p>}
+
         <section className="mt-8 rounded-lg border border-line bg-white p-5 shadow-sm">
           <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
             <div>
               <label htmlFor="business-select">Managed business</label>
-              <select id="business-select" value={selectedBusinessId} onChange={(event) => {
+              <select id="business-select" value={managedBusinessId} onChange={(event) => {
                 setSelectedBusinessId(event.target.value);
                 setFilters({ status: '', date: '', serviceId: '' });
               }}>
@@ -1831,11 +1890,11 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
           </Manager>
 
           <Manager title="Services" icon={Edit3} draft={serviceDraft} setDraft={setServiceDraft} onSave={saveService} saveLabel={editingServiceId ? 'Update Service' : 'Save Services'}>
-            <input placeholder="Service name" value={serviceDraft.name} onChange={(event) => setServiceDraft({ ...serviceDraft, name: event.target.value })} />
+            <input placeholder="Service name" value={serviceDraft.name} onChange={(event) => setServiceDraft({ ...serviceDraft, name: event.target.value })} required />
             <textarea placeholder="Description" value={serviceDraft.description} onChange={(event) => setServiceDraft({ ...serviceDraft, description: event.target.value })} />
             <div className="grid grid-cols-2 gap-3">
-              <input type="number" placeholder="Minutes" value={serviceDraft.durationMinutes} onChange={(event) => setServiceDraft({ ...serviceDraft, durationMinutes: event.target.value })} />
-              <input type="number" placeholder="Price" value={serviceDraft.price} onChange={(event) => setServiceDraft({ ...serviceDraft, price: event.target.value })} />
+              <input type="number" min="1" placeholder="Minutes" value={serviceDraft.durationMinutes} onChange={(event) => setServiceDraft({ ...serviceDraft, durationMinutes: event.target.value })} required />
+              <input type="number" min="0" step="0.01" placeholder="Price" value={serviceDraft.price} onChange={(event) => setServiceDraft({ ...serviceDraft, price: event.target.value })} required />
             </div>
             <MiniList
               items={services}
@@ -1849,9 +1908,9 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
           </Manager>
 
           <Manager title="Staff" icon={Users} onSave={saveStaff} saveLabel={editingStaffId ? 'Update Staff' : 'Save Staff'}>
-            <input placeholder="Name" value={staffDraft.name} onChange={(event) => setStaffDraft({ ...staffDraft, name: event.target.value })} />
-            <input placeholder="Role" value={staffDraft.role} onChange={(event) => setStaffDraft({ ...staffDraft, role: event.target.value })} />
-            <input placeholder="Email" value={staffDraft.email} onChange={(event) => setStaffDraft({ ...staffDraft, email: event.target.value })} />
+            <input placeholder="Name" value={staffDraft.name} onChange={(event) => setStaffDraft({ ...staffDraft, name: event.target.value })} required />
+            <input placeholder="Role" value={staffDraft.role} onChange={(event) => setStaffDraft({ ...staffDraft, role: event.target.value })} required />
+            <input type="email" placeholder="Email" value={staffDraft.email} onChange={(event) => setStaffDraft({ ...staffDraft, email: event.target.value })} />
             <input placeholder="Phone" value={staffDraft.phoneNumber} onChange={(event) => setStaffDraft({ ...staffDraft, phoneNumber: event.target.value })} />
             <MiniList
               items={staff}
@@ -1892,7 +1951,16 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
               />
             ))}
           </div>
-          <button className="btn-primary mt-4" onClick={async () => setBusinessInfo(await api.updateBusinessInfo(businessInfo, selectedBusinessId))}>
+          <button className="btn-primary mt-4" onClick={async () => {
+            setAdminError('');
+            setAdminMessage('');
+            try {
+              setBusinessInfo(await api.updateBusinessInfo(businessInfo, managedBusinessId));
+              setAdminMessage('Business settings saved.');
+            } catch (error) {
+              setAdminError(error.message || 'Could not save business settings.');
+            }
+          }}>
             <Save size={18} /> Save Business Info
           </button>
         </section>

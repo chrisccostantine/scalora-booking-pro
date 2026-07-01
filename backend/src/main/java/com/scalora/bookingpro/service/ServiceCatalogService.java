@@ -76,7 +76,7 @@ public class ServiceCatalogService {
 
     private void apply(ServiceEntity service, ServiceRequest request) {
         service.setName(request.name());
-        service.setDescription(request.description());
+        service.setDescription(request.description() == null ? "" : request.description());
         service.setDurationMinutes(request.durationMinutes());
         service.setPrice(request.price());
         service.setActive(request.active());

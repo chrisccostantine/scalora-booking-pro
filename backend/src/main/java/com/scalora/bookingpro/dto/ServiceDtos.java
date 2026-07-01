@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 public class ServiceDtos {
     public record ServiceRequest(
         @NotBlank String name,
-        @NotBlank String description,
+        String description,
         @NotNull @Min(1) Integer durationMinutes,
         @NotNull BigDecimal price,
         boolean active
