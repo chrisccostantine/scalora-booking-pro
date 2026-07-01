@@ -8,7 +8,7 @@ async function request(path, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token && options.auth !== false ? { Authorization: `Bearer ${token}` } : {}),
   };
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -29,23 +29,29 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  getBusinesses: () => request('/businesses'),
-  getBusiness: (slug) => request(`/businesses/${slug}`),
-  getPublicBusiness: (slug) => request(`/public/businesses/${slug}`),
-  getServices: () => request('/services'),
-  getBusinessServices: (slug) => request(`/businesses/${slug}/services`),
+  getBusinesses: async () => {
+    try {
+      return await request('/public/businesses', { auth: false });
+    } catch {
+      return request('/businesses', { auth: false });
+    }
+  },
+  getBusiness: (slug) => request(`/businesses/${slug}`, { auth: false }),
+  getPublicBusiness: (slug) => request(`/public/businesses/${slug}`, { auth: false }),
+  getServices: () => request('/services', { auth: false }),
+  getBusinessServices: (slug) => request(`/businesses/${slug}/services`, { auth: false }),
   getAvailabilitySlots: (slug, serviceId, date) =>
-    request(`/businesses/${slug}/availability-slots?${new URLSearchParams({ serviceId, date })}`),
-  createBooking: (payload) => request('/bookings', { method: 'POST', body: JSON.stringify(payload) }),
+    request(`/businesses/${slug}/availability-slots?${new URLSearchParams({ serviceId, date })}`, { auth: false }),
+  createBooking: (payload) => request('/bookings', { method: 'POST', body: JSON.stringify(payload), auth: false }),
   createPublicBusinessBooking: (slug, payload) =>
-    request(`/public/businesses/${slug}/bookings`, { method: 'POST', body: JSON.stringify(payload) }),
-  getTestimonials: () => request('/testimonials'),
-  getBusinessTestimonials: (slug) => request(`/businesses/${slug}/testimonials`),
-  getBusinessStaff: (slug) => request(`/businesses/${slug}/staff`),
+    request(`/public/businesses/${slug}/bookings`, { method: 'POST', body: JSON.stringify(payload), auth: false }),
+  getTestimonials: () => request('/testimonials', { auth: false }),
+  getBusinessTestimonials: (slug) => request(`/businesses/${slug}/testimonials`, { auth: false }),
+  getBusinessStaff: (slug) => request(`/businesses/${slug}/staff`, { auth: false }),
   sendContact: (payload, slug) =>
-    request(slug ? `/businesses/${slug}/contact` : '/contact', { method: 'POST', body: JSON.stringify(payload) }),
-  getBusinessInfo: () => request('/business-info'),
-  getBusinessProfileInfo: (slug) => request(`/businesses/${slug}/business-info`),
+    request(slug ? `/businesses/${slug}/contact` : '/contact', { method: 'POST', body: JSON.stringify(payload), auth: false }),
+  getBusinessInfo: () => request('/business-info', { auth: false }),
+  getBusinessProfileInfo: (slug) => request(`/businesses/${slug}/business-info`, { auth: false }),
   login: (payload) => request('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
   getSuperBusinesses: () => request('/super-admin/businesses'),
   getSuperAnalytics: () => request('/super-admin/analytics'),

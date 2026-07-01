@@ -15,7 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/public/businesses/{slug}")
+@RequestMapping("/api/public/businesses")
 public class PublicBusinessController {
     private final AdminContentService content;
     private final ServiceCatalogService services;
@@ -28,29 +28,34 @@ public class PublicBusinessController {
     }
 
     @GetMapping
+    public List<BusinessResponse> businesses() {
+        return content.publicBusinesses();
+    }
+
+    @GetMapping("/{slug}")
     public BusinessResponse business(@PathVariable String slug) {
         return content.activeBusinessBySlug(slug);
     }
 
-    @GetMapping("/services")
+    @GetMapping("/{slug}/services")
     public List<ServiceResponse> services(@PathVariable String slug) {
         content.activeBusinessBySlug(slug);
         return services.publicServices(slug);
     }
 
-    @GetMapping("/staff")
+    @GetMapping("/{slug}/staff")
     public List<StaffResponse> staff(@PathVariable String slug) {
         content.activeBusinessBySlug(slug);
         return content.publicStaff(slug);
     }
 
-    @GetMapping("/testimonials")
+    @GetMapping("/{slug}/testimonials")
     public List<TestimonialResponse> testimonials(@PathVariable String slug) {
         content.activeBusinessBySlug(slug);
         return content.publicTestimonials(slug);
     }
 
-    @PostMapping("/bookings")
+    @PostMapping("/{slug}/bookings")
     @ResponseStatus(HttpStatus.CREATED)
     public BookingResponse booking(@PathVariable String slug, @Valid @RequestBody BookingRequest request) {
         content.activeBusinessBySlug(slug);
