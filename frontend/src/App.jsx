@@ -396,6 +396,7 @@ function BusinessDirectory({ businesses }) {
         {businesses.length === 0 ? (
           <div className="mt-8 rounded-lg border border-line bg-[#fbfdfc] p-6 text-sm text-graphite">
             No businesses are published yet. Add an active business from the Super Admin dashboard and it will appear here.
+            <span className="mt-2 block font-mono text-xs">{window.__SCALORA_CONFIG__?.API_BASE_URL || 'API'}/public/businesses</span>
           </div>
         ) : (
           <div className="mt-8 grid gap-4 md:grid-cols-3">

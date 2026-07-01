@@ -31,10 +31,18 @@ async function request(path, options = {}) {
 export const api = {
   getBusinesses: async () => {
     try {
-      return await request('/public/businesses', { auth: false });
+      const publicBusinesses = await request('/public/businesses', { auth: false });
+      if (publicBusinesses.length > 0 || !localStorage.getItem('scalora_token')) return publicBusinesses;
     } catch {
-      return request('/businesses', { auth: false });
+      try {
+        const legacyBusinesses = await request('/businesses', { auth: false });
+        if (legacyBusinesses.length > 0 || !localStorage.getItem('scalora_token')) return legacyBusinesses;
+      } catch {
+        if (!localStorage.getItem('scalora_token')) throw new Error('Unable to load public businesses.');
+      }
     }
+    const adminBusinesses = await request('/admin/businesses');
+    return adminBusinesses.filter((business) => business.active);
   },
   getBusiness: (slug) => request(`/businesses/${slug}`, { auth: false }),
   getPublicBusiness: (slug) => request(`/public/businesses/${slug}`, { auth: false }),
