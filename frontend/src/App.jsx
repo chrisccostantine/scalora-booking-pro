@@ -607,6 +607,8 @@ function TestimonialsSection({ testimonials }) {
 function ContactSection({ businessInfo, profileSlug }) {
   const [sent, setSent] = useState('');
   const [form, setForm] = useState({ name: '', email: '', phoneNumber: '', message: '' });
+  const mapUrl = mapEmbedUrl(businessInfo);
+  const mapsExternalUrl = businessInfo.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessInfo.address || '')}`;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -634,8 +636,11 @@ function ContactSection({ businessInfo, profileSlug }) {
             title="Business location"
             className="mt-8 h-64 w-full rounded-lg border border-line"
             loading="lazy"
-            src={businessInfo.googleMapsUrl || `https://www.google.com/maps?q=${encodeURIComponent(businessInfo.address || '')}&output=embed`}
+            src={mapUrl}
           />
+          <a className="btn-secondary mt-3" href={mapsExternalUrl} target="_blank" rel="noreferrer">
+            <ExternalLink size={17} /> Open in Google Maps
+          </a>
         </div>
         <form onSubmit={submit} className="rounded-lg border border-line bg-white p-6 shadow-soft">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -758,6 +763,28 @@ function imageList(value) {
   } catch {
     return value.split(',').map((item) => item.trim()).filter(Boolean);
   }
+}
+
+function mapEmbedUrl(businessInfo) {
+  const rawUrl = (businessInfo.googleMapsUrl || '').trim();
+  const address = (businessInfo.address || '').trim();
+  if (rawUrl) {
+    if (rawUrl.includes('/embed?')) return rawUrl;
+    try {
+      const parsed = new URL(rawUrl);
+      const query = parsed.searchParams.get('q') || parsed.searchParams.get('query') || parsed.searchParams.get('ll');
+      if (query) return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+      const pathPlace = decodeURIComponent(parsed.pathname)
+        .split('/')
+        .filter(Boolean)
+        .find((part, index, parts) => parts[index - 1] === 'place');
+      if (pathPlace) return `https://www.google.com/maps?q=${encodeURIComponent(pathPlace.replaceAll('+', ' '))}&output=embed`;
+      return `https://www.google.com/maps?q=${encodeURIComponent(rawUrl)}&output=embed`;
+    } catch {
+      return `https://www.google.com/maps?q=${encodeURIComponent(rawUrl)}&output=embed`;
+    }
+  }
+  return `https://www.google.com/maps?q=${encodeURIComponent(address || 'Scalora')}&output=embed`;
 }
 
 function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, setBusinesses }) {
