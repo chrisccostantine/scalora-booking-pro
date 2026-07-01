@@ -17,8 +17,20 @@ async function request(path, options = {}) {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || 'Request failed');
+    const contentType = response.headers.get('content-type') || '';
+    let message = `Request failed (${response.status})`;
+    if (contentType.includes('application/json')) {
+      const error = await response.json().catch(() => null);
+      if (error?.message) message = error.message;
+      if (error?.fields) {
+        const fieldMessages = Object.entries(error.fields).map(([field, detail]) => `${field}: ${detail}`);
+        if (fieldMessages.length) message = `${message}: ${fieldMessages.join(', ')}`;
+      }
+    } else {
+      const text = await response.text().catch(() => '');
+      if (text.trim()) message = `${message}: ${text.trim().slice(0, 220)}`;
+    }
+    throw new Error(message);
   }
 
   if (response.status === 204) {
