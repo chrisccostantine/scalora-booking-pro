@@ -68,7 +68,7 @@ public class AdminContentService {
     }
 
     public List<BusinessResponse> publicBusinesses() {
-        return businesses.findByActiveTrueOrderByNameAsc().stream().map(this::businessResponse).toList();
+        return businesses.findAll().stream().map(this::businessResponse).toList();
     }
 
     public List<BusinessResponse> businesses() {

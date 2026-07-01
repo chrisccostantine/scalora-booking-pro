@@ -28,24 +28,40 @@ async function request(path, options = {}) {
   return response.json();
 }
 
+function visibleBusinesses(items) {
+  return (items || []).filter((business) => business.active !== false && business.status !== 'INACTIVE');
+}
+
 export const api = {
   getBusinesses: async () => {
     try {
-      const publicBusinesses = await request('/public/businesses', { auth: false });
+      const publicBusinesses = visibleBusinesses(await request('/public/businesses', { auth: false }));
       if (publicBusinesses.length > 0 || !localStorage.getItem('scalora_token')) return publicBusinesses;
     } catch {
       try {
-        const legacyBusinesses = await request('/businesses', { auth: false });
+        const legacyBusinesses = visibleBusinesses(await request('/businesses', { auth: false }));
         if (legacyBusinesses.length > 0 || !localStorage.getItem('scalora_token')) return legacyBusinesses;
       } catch {
         if (!localStorage.getItem('scalora_token')) throw new Error('Unable to load public businesses.');
       }
     }
-    const adminBusinesses = await request('/admin/businesses');
-    return adminBusinesses.filter((business) => business.active);
+    return visibleBusinesses(await request('/admin/businesses'));
   },
   getBusiness: (slug) => request(`/businesses/${slug}`, { auth: false }),
-  getPublicBusiness: (slug) => request(`/public/businesses/${slug}`, { auth: false }),
+  getPublicBusiness: async (slug) => {
+    try {
+      return await request(`/public/businesses/${slug}`, { auth: false });
+    } catch {
+      try {
+        return await request(`/businesses/${slug}`, { auth: false });
+      } catch {
+        if (!localStorage.getItem('scalora_token')) throw new Error('Business unavailable.');
+      }
+    }
+    const business = (await request('/admin/businesses')).find((item) => item.slug === slug);
+    if (!business || business.active === false || business.status === 'INACTIVE') throw new Error('Business unavailable.');
+    return business;
+  },
   getServices: () => request('/services', { auth: false }),
   getBusinessServices: (slug) => request(`/businesses/${slug}/services`, { auth: false }),
   getAvailabilitySlots: (slug, serviceId, date) =>
