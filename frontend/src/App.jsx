@@ -743,6 +743,7 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBusiness, setEditingBusiness] = useState(null);
   const [draft, setDraft] = useState(emptyBusinessDraft);
+  const [operationPanel, setOperationPanel] = useState(null);
 
   const selectedBusiness = businesses.find((business) => String(business.id) === String(selectedBusinessId)) || businesses[0];
 
@@ -806,6 +807,12 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
     setBusinesses((current) => current.filter((item) => item.id !== business.id));
     if (String(selectedBusinessId) === String(business.id)) setSelectedBusinessId('');
     api.getSuperAnalytics().then(setAnalytics).catch(() => {});
+  };
+
+  const openBusinessOperations = (business, section) => {
+    setSelectedBusinessId(String(business.id));
+    setOperationPanel({ business, section });
+    setActiveNav('Businesses');
   };
 
   const filteredBusinesses = businesses.filter((business) => {
@@ -932,8 +939,15 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
           {metricGrid}
           <div className="mt-6">{businessTable}</div>
           <div className="mt-6">
-            <BusinessPreview business={selectedBusiness} onEdit={() => selectedBusiness && openEdit(selectedBusiness)} />
+            <BusinessPreview
+              business={selectedBusiness}
+              onEdit={() => selectedBusiness && openEdit(selectedBusiness)}
+              onManageServices={() => selectedBusiness && openBusinessOperations(selectedBusiness, 'services')}
+              onManageStaff={() => selectedBusiness && openBusinessOperations(selectedBusiness, 'staff')}
+              onManageBookings={() => selectedBusiness && openBusinessOperations(selectedBusiness, 'bookings')}
+            />
           </div>
+          {operationPanel && <BusinessOperationsPanel panel={operationPanel} onClose={() => setOperationPanel(null)} />}
         </>
       );
     }
@@ -1059,7 +1073,7 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
   );
 }
 
-function BusinessPreview({ business, onEdit }) {
+function BusinessPreview({ business, onEdit, onManageServices, onManageStaff, onManageBookings }) {
   if (!business) {
     return (
       <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
@@ -1093,10 +1107,57 @@ function BusinessPreview({ business, onEdit }) {
         <div className="mt-5 flex flex-wrap gap-2">
           <a className="btn-primary" href={publicLink(business.slug)} target="_blank" rel="noreferrer"><ExternalLink size={17} /> View Public Page</a>
           <button className="btn-secondary" onClick={onEdit}><Edit3 size={17} /> Edit Business</button>
-          <button className="btn-secondary">Manage Services</button>
-          <button className="btn-secondary">Manage Staff</button>
-          <button className="btn-secondary">Manage Bookings</button>
+          <button className="btn-secondary" onClick={onManageServices}>Manage Services</button>
+          <button className="btn-secondary" onClick={onManageStaff}>Manage Staff</button>
+          <button className="btn-secondary" onClick={onManageBookings}>Manage Bookings</button>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function BusinessOperationsPanel({ panel, onClose }) {
+  const { business, section } = panel;
+  const titles = {
+    services: 'Services Management',
+    staff: 'Staff Management',
+    bookings: 'Bookings Management',
+  };
+  const ownerReady = Boolean(business.ownerEmail);
+  const invite = [
+    `Business: ${business.name}`,
+    `Public page: ${window.location.origin}${publicLink(business.slug)}`,
+    `Owner dashboard: ${window.location.origin}${adminLoginLink()}`,
+    `Owner email: ${business.ownerEmail || 'not set'}`,
+  ].join('\n');
+
+  return (
+    <section className="mt-6 rounded-lg border border-line bg-white p-5 shadow-sm">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+        <div>
+          <p className="text-sm font-bold uppercase text-coral">{business.name}</p>
+          <h3 className="mt-1 text-xl font-bold">{titles[section]}</h3>
+          <p className="mt-2 text-sm leading-6 text-graphite">
+            Business operations are managed from the business owner dashboard so each tenant can only access its own data.
+          </p>
+        </div>
+        <button className="btn-secondary" onClick={onClose}>Close</button>
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <a className="btn-primary" href={adminLoginLink()} target="_blank" rel="noreferrer">
+          <ExternalLink size={17} /> Open Owner Login
+        </a>
+        <a className="btn-secondary" href={publicLink(business.slug)} target="_blank" rel="noreferrer">
+          <ExternalLink size={17} /> View Public Page
+        </a>
+        <button className="btn-secondary" onClick={() => navigator.clipboard?.writeText(invite)}>
+          <Copy size={17} /> Copy Owner Details
+        </button>
+      </div>
+      <div className={`mt-4 rounded-md px-4 py-3 text-sm ${ownerReady ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'}`}>
+        {ownerReady
+          ? `Owner account email: ${business.ownerEmail}. The owner can log in and manage ${section}.`
+          : 'No owner email is set. Edit this business, add the owner email, generate a temporary password, and save.'}
       </div>
     </section>
   );
@@ -1314,6 +1375,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
   const [editingServiceId, setEditingServiceId] = useState(null);
   const [editingStaffId, setEditingStaffId] = useState(null);
   const [editingTestimonialId, setEditingTestimonialId] = useState(null);
+  const [editingAvailabilityId, setEditingAvailabilityId] = useState(null);
   const isSuperAdmin = adminUser?.role === 'SUPER_ADMIN' || adminUser?.role === 'ADMIN';
 
   const loadAdminData = () => {
@@ -1439,8 +1501,15 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
   };
 
   const saveAvailability = async () => {
-    const created = await api.createAvailability({ ...availabilityDraft, capacity: Number(availabilityDraft.capacity) }, selectedBusinessId);
-    setAvailability((current) => [...current, created]);
+    const payload = { ...availabilityDraft, capacity: Number(availabilityDraft.capacity) };
+    const saved = editingAvailabilityId
+      ? await api.updateAvailability(editingAvailabilityId, payload)
+      : await api.createAvailability(payload, selectedBusinessId);
+    setAvailability((current) => editingAvailabilityId
+      ? current.map((item) => (item.id === saved.id ? saved : item))
+      : [...current, saved]);
+    setEditingAvailabilityId(null);
+    setAvailabilityDraft({ dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '17:00', capacity: 1, active: true });
   };
 
   if (isSuperAdmin) {
@@ -1610,7 +1679,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
         </section>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-3">
-          <Manager title="Availability" icon={CalendarCheck} onSave={saveAvailability}>
+          <Manager title="Availability" icon={CalendarCheck} onSave={saveAvailability} saveLabel={editingAvailabilityId ? 'Update Availability' : 'Save Availability'}>
             <select value={availabilityDraft.dayOfWeek} onChange={(event) => setAvailabilityDraft({ ...availabilityDraft, dayOfWeek: event.target.value })}>
               {weekdays.map((day) => <option key={day} value={day}>{day}</option>)}
             </select>
@@ -1622,12 +1691,19 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
             <MiniList
               items={availability}
               label={(item) => `${item.dayOfWeek} ${item.startTime}-${item.endTime} cap ${item.capacity}`}
-              onEdit={(item) => setAvailabilityDraft({ dayOfWeek: item.dayOfWeek, startTime: item.startTime, endTime: item.endTime, capacity: item.capacity, active: item.active })}
-              onDelete={async (id) => { await api.deleteAvailability(id); setAvailability((current) => current.filter((item) => item.id !== id)); }}
+              onEdit={(item) => {
+                setEditingAvailabilityId(item.id);
+                setAvailabilityDraft({ dayOfWeek: item.dayOfWeek, startTime: item.startTime, endTime: item.endTime, capacity: item.capacity, active: item.active });
+              }}
+              onDelete={async (id) => {
+                await api.deleteAvailability(id);
+                setAvailability((current) => current.filter((item) => item.id !== id));
+                if (editingAvailabilityId === id) setEditingAvailabilityId(null);
+              }}
             />
           </Manager>
 
-          <Manager title="Services" icon={Edit3} draft={serviceDraft} setDraft={setServiceDraft} onSave={saveService}>
+          <Manager title="Services" icon={Edit3} draft={serviceDraft} setDraft={setServiceDraft} onSave={saveService} saveLabel={editingServiceId ? 'Update Service' : 'Save Services'}>
             <input placeholder="Service name" value={serviceDraft.name} onChange={(event) => setServiceDraft({ ...serviceDraft, name: event.target.value })} />
             <textarea placeholder="Description" value={serviceDraft.description} onChange={(event) => setServiceDraft({ ...serviceDraft, description: event.target.value })} />
             <div className="grid grid-cols-2 gap-3">
@@ -1645,7 +1721,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
             />
           </Manager>
 
-          <Manager title="Staff" icon={Users} onSave={saveStaff}>
+          <Manager title="Staff" icon={Users} onSave={saveStaff} saveLabel={editingStaffId ? 'Update Staff' : 'Save Staff'}>
             <input placeholder="Name" value={staffDraft.name} onChange={(event) => setStaffDraft({ ...staffDraft, name: event.target.value })} />
             <input placeholder="Role" value={staffDraft.role} onChange={(event) => setStaffDraft({ ...staffDraft, role: event.target.value })} />
             <input placeholder="Email" value={staffDraft.email} onChange={(event) => setStaffDraft({ ...staffDraft, email: event.target.value })} />
@@ -1661,7 +1737,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
             />
           </Manager>
 
-          <Manager title="Testimonials" icon={Star} onSave={saveTestimonial}>
+          <Manager title="Testimonials" icon={Star} onSave={saveTestimonial} saveLabel={editingTestimonialId ? 'Update Testimonial' : 'Save Testimonials'}>
             <input placeholder="Customer name" value={testimonialDraft.customerName} onChange={(event) => setTestimonialDraft({ ...testimonialDraft, customerName: event.target.value })} />
             <textarea placeholder="Content" value={testimonialDraft.content} onChange={(event) => setTestimonialDraft({ ...testimonialDraft, content: event.target.value })} />
             <input type="number" min="1" max="5" value={testimonialDraft.rating} onChange={(event) => setTestimonialDraft({ ...testimonialDraft, rating: event.target.value })} />
@@ -1733,7 +1809,7 @@ function ResponsiveTable({ columns, rows }) {
   );
 }
 
-function Manager({ title, icon: Icon, onSave, children }) {
+function Manager({ title, icon: Icon, onSave, saveLabel, children }) {
   return (
     <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
@@ -1741,7 +1817,7 @@ function Manager({ title, icon: Icon, onSave, children }) {
         <Icon className="text-teal" />
       </div>
       <div className="space-y-3">{children}</div>
-      <button className="btn-primary mt-4 w-full" onClick={onSave}><Plus size={18} /> Save {title}</button>
+      <button className="btn-primary mt-4 w-full" onClick={onSave}><Plus size={18} /> {saveLabel || `Save ${title}`}</button>
     </section>
   );
 }
