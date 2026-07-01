@@ -768,23 +768,37 @@ function imageList(value) {
 function mapEmbedUrl(businessInfo) {
   const rawUrl = (businessInfo.googleMapsUrl || '').trim();
   const address = (businessInfo.address || '').trim();
+  const coordinatesFrom = (value) => {
+    const decoded = decodeURIComponent(value || '');
+    const atMatch = decoded.match(/@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
+    if (atMatch) return `${atMatch[1]},${atMatch[2]}`;
+    const dataMatch = decoded.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+    if (dataMatch) return `${dataMatch[1]},${dataMatch[2]}`;
+    const plainMatch = decoded.match(/^(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)$/);
+    if (plainMatch) return `${plainMatch[1]},${plainMatch[2]}`;
+    return '';
+  };
+  const embedFromQuery = (query) => `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`;
+
   if (rawUrl) {
     if (rawUrl.includes('/embed?')) return rawUrl;
+    const coordinates = coordinatesFrom(rawUrl);
+    if (coordinates) return embedFromQuery(coordinates);
     try {
       const parsed = new URL(rawUrl);
       const query = parsed.searchParams.get('q') || parsed.searchParams.get('query') || parsed.searchParams.get('ll');
-      if (query) return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+      if (query) return embedFromQuery(coordinatesFrom(query) || query);
       const pathPlace = decodeURIComponent(parsed.pathname)
         .split('/')
         .filter(Boolean)
         .find((part, index, parts) => parts[index - 1] === 'place');
-      if (pathPlace) return `https://www.google.com/maps?q=${encodeURIComponent(pathPlace.replaceAll('+', ' '))}&output=embed`;
-      return `https://www.google.com/maps?q=${encodeURIComponent(rawUrl)}&output=embed`;
+      if (pathPlace) return embedFromQuery(pathPlace.replaceAll('+', ' '));
+      return embedFromQuery(address || rawUrl);
     } catch {
-      return `https://www.google.com/maps?q=${encodeURIComponent(rawUrl)}&output=embed`;
+      return embedFromQuery(coordinatesFrom(rawUrl) || rawUrl);
     }
   }
-  return `https://www.google.com/maps?q=${encodeURIComponent(address || 'Scalora')}&output=embed`;
+  return embedFromQuery(address || 'Scalora');
 }
 
 function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, setBusinesses }) {
@@ -1292,7 +1306,8 @@ function BusinessModal({ draft, setDraft, editing, onClose, onSubmit }) {
               <input placeholder="Opening Hours" value={draft.openingHours} onChange={(event) => update('openingHours', event.target.value)} />
             </div>
             <input placeholder="Address" value={draft.address} onChange={(event) => update('address', event.target.value)} />
-            <input placeholder="Google Maps URL" value={draft.googleMapsUrl} onChange={(event) => update('googleMapsUrl', event.target.value)} />
+            <input placeholder="Google Maps link, coordinates, or place URL" value={draft.googleMapsUrl} onChange={(event) => update('googleMapsUrl', event.target.value)} />
+            <p className="text-xs text-graphite">Best: paste a Google Maps place link or coordinates like 33.8938,35.5018.</p>
           </div>
           <div className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-3">
