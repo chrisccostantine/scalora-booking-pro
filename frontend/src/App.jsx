@@ -119,7 +119,20 @@ function App() {
           phoneNumber: profile.phone || profile.phoneNumber,
         });
       } else {
-        setBusinessUnavailable(true);
+        const listedBusiness = results[0].status === 'fulfilled'
+          ? results[0].value.find((business) => business.slug === profileSlug)
+          : null;
+        if (listedBusiness) {
+          setBusinessUnavailable(false);
+          setBusinessInfo({
+            ...fallbackBusiness,
+            ...listedBusiness,
+            businessName: listedBusiness.name,
+            phoneNumber: listedBusiness.phone || listedBusiness.phoneNumber,
+          });
+        } else {
+          setBusinessUnavailable(true);
+        }
       }
     });
   }, [profileSlug]);

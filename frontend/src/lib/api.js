@@ -28,24 +28,20 @@ async function request(path, options = {}) {
   return response.json();
 }
 
-function visibleBusinesses(items) {
-  return (items || []).filter((business) => business.active !== false && business.status !== 'INACTIVE');
-}
-
 export const api = {
   getBusinesses: async () => {
     try {
-      const publicBusinesses = visibleBusinesses(await request('/public/businesses', { auth: false }));
-      if (publicBusinesses.length > 0 || !localStorage.getItem('scalora_token')) return publicBusinesses;
+      const publicBusinesses = await request('/public/businesses', { auth: false });
+      if (publicBusinesses.length > 0) return publicBusinesses;
     } catch {
       try {
-        const legacyBusinesses = visibleBusinesses(await request('/businesses', { auth: false }));
-        if (legacyBusinesses.length > 0 || !localStorage.getItem('scalora_token')) return legacyBusinesses;
+        const legacyBusinesses = await request('/businesses', { auth: false });
+        if (legacyBusinesses.length > 0) return legacyBusinesses;
       } catch {
-        if (!localStorage.getItem('scalora_token')) throw new Error('Unable to load public businesses.');
+        throw new Error('Unable to load public businesses.');
       }
     }
-    return visibleBusinesses(await request('/admin/businesses'));
+    return [];
   },
   getBusiness: (slug) => request(`/businesses/${slug}`, { auth: false }),
   getPublicBusiness: async (slug) => {
@@ -58,9 +54,7 @@ export const api = {
         if (!localStorage.getItem('scalora_token')) throw new Error('Business unavailable.');
       }
     }
-    const business = (await request('/admin/businesses')).find((item) => item.slug === slug);
-    if (!business || business.active === false || business.status === 'INACTIVE') throw new Error('Business unavailable.');
-    return business;
+    throw new Error('Business unavailable.');
   },
   getServices: () => request('/services', { auth: false }),
   getBusinessServices: (slug) => request(`/businesses/${slug}/services`, { auth: false }),
