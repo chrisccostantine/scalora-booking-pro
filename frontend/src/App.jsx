@@ -308,7 +308,7 @@ function PublicSite({ businessInfo, services, staff, testimonials, businesses, p
             </div>
           </div>
           <div id="booking">
-            <BookingForm services={services} profileSlug={profileSlug} compact />
+            <BookingForm services={services} profileSlug={profileSlug} businessInfo={businessInfo} compact />
           </div>
         </div>
       </section>
@@ -474,7 +474,7 @@ function StaffSection({ staff }) {
   );
 }
 
-function BookingForm({ services, profileSlug, compact = false }) {
+function BookingForm({ services, profileSlug, businessInfo = fallbackBusiness, compact = false }) {
   const [form, setForm] = useState({
     serviceId: services[0]?.id || '',
     appointmentDate: '',
@@ -485,6 +485,7 @@ function BookingForm({ services, profileSlug, compact = false }) {
     notes: '',
   });
   const [message, setMessage] = useState('');
+  const [whatsappUrl, setWhatsappUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [slots, setSlots] = useState([]);
 
@@ -513,6 +514,7 @@ function BookingForm({ services, profileSlug, compact = false }) {
     event.preventDefault();
     setBusy(true);
     setMessage('');
+    setWhatsappUrl('');
     try {
       const payload = { ...form, serviceId: Number(form.serviceId) };
       if (profileSlug) {
@@ -520,6 +522,8 @@ function BookingForm({ services, profileSlug, compact = false }) {
       } else {
         await api.createBooking(payload);
       }
+      const serviceName = services.find((service) => String(service.id) === String(payload.serviceId))?.name;
+      setWhatsappUrl(whatsappBookingUrl(businessInfo, payload, serviceName));
       setMessage('Booking request received. We will confirm it shortly.');
       setForm((current) => ({ ...current, customerName: '', phoneNumber: '', email: '', notes: '' }));
     } catch (error) {
@@ -578,6 +582,11 @@ function BookingForm({ services, profileSlug, compact = false }) {
         {busy ? 'Sending...' : 'Request Booking'}
       </button>
       {message && <p className="mt-3 rounded-md bg-mist px-3 py-2 text-sm text-graphite">{message}</p>}
+      {whatsappUrl && (
+        <a className="btn-secondary mt-3 w-full" href={whatsappUrl} target="_blank" rel="noreferrer">
+          <MessageCircle size={18} /> Send Details on WhatsApp
+        </a>
+      )}
     </form>
   );
 }
@@ -799,6 +808,22 @@ function mapEmbedUrl(businessInfo) {
     }
   }
   return embedFromQuery(address || 'Scalora');
+}
+
+function whatsappBookingUrl(businessInfo, booking, serviceName) {
+  const phone = (businessInfo.whatsappNumber || businessInfo.phoneNumber || businessInfo.phone || '').replace(/[^0-9]/g, '');
+  if (!phone) return '';
+  const text = [
+    `Hello ${businessInfo.businessName || businessInfo.name || ''}, I just requested a booking.`,
+    `Service: ${serviceName || '-'}`,
+    `Date: ${booking.appointmentDate || '-'}`,
+    `Time: ${booking.appointmentTime || '-'}`,
+    `Name: ${booking.customerName || '-'}`,
+    `Phone: ${booking.phoneNumber || '-'}`,
+    `Email: ${booking.email || '-'}`,
+    `Notes: ${booking.notes || '-'}`,
+  ].join('\n');
+  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
 
 function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, setBusinesses }) {

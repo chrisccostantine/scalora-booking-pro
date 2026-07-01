@@ -27,13 +27,11 @@ public class BookingService {
     private final BookingRepository bookings;
     private final ServiceRepository services;
     private final BusinessAvailabilityRepository availability;
-    private final WhatsAppNotificationService whatsAppNotifications;
 
-    public BookingService(BookingRepository bookings, ServiceRepository services, BusinessAvailabilityRepository availability, WhatsAppNotificationService whatsAppNotifications) {
+    public BookingService(BookingRepository bookings, ServiceRepository services, BusinessAvailabilityRepository availability) {
         this.bookings = bookings;
         this.services = services;
         this.availability = availability;
-        this.whatsAppNotifications = whatsAppNotifications;
     }
 
     @Transactional
@@ -77,9 +75,7 @@ public class BookingService {
         booking.setEmail(request.email());
         booking.setNotes(request.notes());
         booking.setStatus(BookingStatus.PENDING);
-        Booking saved = bookings.save(booking);
-        whatsAppNotifications.bookingCreated(saved);
-        return toResponse(saved);
+        return toResponse(bookings.save(booking));
     }
 
     public List<AvailabilitySlotResponse> availableSlotsForBusiness(String slug, Long serviceId, LocalDate date) {
