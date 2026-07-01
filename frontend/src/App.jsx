@@ -125,9 +125,20 @@ function App() {
   }, [profileSlug]);
 
   const go = (hash) => {
+    const publicDestination = hash !== '#admin' && hash !== '#dashboard';
+    if (publicDestination && window.location.pathname === '/admin') {
+      window.history.pushState(null, '', `/${hash}`);
+    } else if (hash === '#admin' && window.location.pathname !== '/admin') {
+      window.history.pushState(null, '', '/admin#admin');
+    } else {
+      window.location.hash = hash;
+    }
     setRoute(hash);
-    window.location.hash = hash;
+    setProfileSlug(businessSlugFromPath());
     setMobileOpen(false);
+    if (hash === '#businesses' && !businessSlugFromPath()) {
+      api.getBusinesses().then(setBusinesses).catch(() => setBusinesses([]));
+    }
     window.requestAnimationFrame(() => {
       const target = document.querySelector(hash);
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
