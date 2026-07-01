@@ -7,6 +7,7 @@ import com.scalora.bookingpro.dto.AdminDtos.BusinessResponse;
 import com.scalora.bookingpro.dto.AdminDtos.PlatformAnalyticsResponse;
 import com.scalora.bookingpro.dto.AdminDtos.AdminUserRequest;
 import com.scalora.bookingpro.dto.AdminDtos.AdminUserResponse;
+import com.scalora.bookingpro.dto.AdminDtos.OwnerPasswordResetResponse;
 import com.scalora.bookingpro.dto.AdminDtos.AvailabilityRequest;
 import com.scalora.bookingpro.dto.AdminDtos.AvailabilityResponse;
 import com.scalora.bookingpro.dto.AdminDtos.StaffRequest;
@@ -170,16 +171,39 @@ public class AdminContentService {
         return users.findByBusinessIdOrderByEmailAsc(businessId).stream().map(this::adminUserResponse).toList();
     }
 
+    @Transactional
     public AdminUserResponse createBusinessAdmin(AdminUserRequest request) {
-        if (users.existsByEmail(request.email())) {
+        String email = normalizeEmail(request.email());
+        if (users.existsByEmail(email)) {
             throw new ApiException(HttpStatus.CONFLICT, "Admin email is already in use.");
         }
         User user = new User();
-        user.setEmail(request.email());
+        user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setRole(Role.BUSINESS_ADMIN);
         user.setBusiness(findBusiness(request.businessId()));
         return adminUserResponse(users.save(user));
+    }
+
+    @Transactional
+    public OwnerPasswordResetResponse resetOwnerPassword(Long businessId, String password) {
+        Business business = findBusiness(businessId);
+        String email = normalizeEmail(business.getOwnerEmail());
+        if (email == null || email.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Add an owner email before resetting the password.");
+        }
+        User user = users.findByEmail(email).orElseGet(User::new);
+        if (user.getId() != null && (user.getBusiness() == null || !business.getId().equals(user.getBusiness().getId()))) {
+            throw new ApiException(HttpStatus.CONFLICT, "Business owner email is already in use.");
+        }
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setRole(Role.BUSINESS_ADMIN);
+        user.setBusiness(business);
+        users.save(user);
+        business.setOwnerEmail(email);
+        businesses.save(business);
+        return new OwnerPasswordResetResponse(email, business.getId(), business.getName());
     }
 
     public List<AvailabilityResponse> availability(Long businessId) {
@@ -360,19 +384,20 @@ public class AdminContentService {
         business.setFacebookUrl(request.facebookUrl());
         business.setTiktokUrl(request.tiktokUrl());
         business.setOwnerName(request.ownerName());
-        business.setOwnerEmail(request.ownerEmail());
+        business.setOwnerEmail(normalizeEmail(request.ownerEmail()));
         business.setActive(request.active());
         syncInfo(business);
     }
 
     private void upsertOwnerAdminIfRequested(Business business, BusinessRequest request) {
-        if (request.ownerEmail() == null || request.ownerEmail().isBlank()) return;
+        String ownerEmail = normalizeEmail(request.ownerEmail());
+        if (ownerEmail == null || ownerEmail.isBlank()) return;
         if (request.temporaryPassword() == null || request.temporaryPassword().isBlank()) return;
-        User user = users.findByEmail(request.ownerEmail()).orElseGet(User::new);
+        User user = users.findByEmail(ownerEmail).orElseGet(User::new);
         if (user.getId() != null && (user.getBusiness() == null || !business.getId().equals(user.getBusiness().getId()))) {
             throw new ApiException(HttpStatus.CONFLICT, "Business owner email is already in use.");
         }
-        user.setEmail(request.ownerEmail());
+        user.setEmail(ownerEmail);
         user.setPasswordHash(passwordEncoder.encode(request.temporaryPassword()));
         user.setRole(Role.BUSINESS_ADMIN);
         user.setBusiness(business);
@@ -396,6 +421,10 @@ public class AdminContentService {
 
     private String defaultIfBlank(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase();
     }
 
     private void syncInfo(Business business) {

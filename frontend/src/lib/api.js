@@ -77,6 +77,8 @@ export const api = {
   updateSuperBusiness: (id, payload) => request(`/super-admin/businesses/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   patchSuperBusinessStatus: (id, active) =>
     request(`/super-admin/businesses/${id}/status`, { method: 'PATCH', body: JSON.stringify({ active }) }),
+  resetBusinessOwnerPassword: (id, password) =>
+    request(`/super-admin/businesses/${id}/owner-password`, { method: 'PATCH', body: JSON.stringify({ password }) }),
   deleteSuperBusiness: (id) => request(`/super-admin/businesses/${id}`, { method: 'DELETE' }),
   getAdminBusinesses: () => request('/admin/businesses'),
   createBusiness: (payload) => request('/admin/businesses', { method: 'POST', body: JSON.stringify(payload) }),

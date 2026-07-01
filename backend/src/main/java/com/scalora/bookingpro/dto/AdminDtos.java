@@ -85,6 +85,8 @@ public class AdminDtos {
 
     public record AdminUserRequest(@Email @NotBlank String email, @NotBlank String password, @NotNull Long businessId) {}
     public record AdminUserResponse(Long id, String email, String role, Long businessId, String businessName) {}
+    public record OwnerPasswordResetRequest(@NotBlank String password) {}
+    public record OwnerPasswordResetResponse(String email, Long businessId, String businessName) {}
 
     public record AvailabilityRequest(@NotNull DayOfWeek dayOfWeek, @NotNull LocalTime startTime, @NotNull LocalTime endTime, @NotNull @Min(1) Integer capacity, boolean active) {}
     public record AvailabilityResponse(Long id, DayOfWeek dayOfWeek, LocalTime startTime, LocalTime endTime, Integer capacity, boolean active) {}

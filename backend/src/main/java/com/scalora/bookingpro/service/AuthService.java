@@ -23,8 +23,9 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
-        var user = users.findByEmail(request.email()).orElseThrow();
+        String email = normalizeEmail(request.email());
+        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, request.password()));
+        var user = users.findByEmail(email).orElseThrow();
         var business = user.getBusiness();
         return new LoginResponse(
             jwtService.generate(user),
@@ -33,5 +34,9 @@ public class AuthService {
             business == null ? null : business.getId(),
             business == null ? null : business.getSlug()
         );
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase();
     }
 }

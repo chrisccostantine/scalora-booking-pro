@@ -2,6 +2,8 @@ package com.scalora.bookingpro.controller;
 
 import com.scalora.bookingpro.dto.AdminDtos.BusinessRequest;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessResponse;
+import com.scalora.bookingpro.dto.AdminDtos.OwnerPasswordResetRequest;
+import com.scalora.bookingpro.dto.AdminDtos.OwnerPasswordResetResponse;
 import com.scalora.bookingpro.dto.AdminDtos.PlatformAnalyticsResponse;
 import com.scalora.bookingpro.service.AdminAccessService;
 import com.scalora.bookingpro.service.AdminContentService;
@@ -51,6 +53,12 @@ public class SuperAdminController {
     public BusinessResponse updateStatus(@PathVariable Long id, @RequestBody StatusRequest request, Authentication authentication) {
         access.requireSuperAdmin(authentication);
         return content.updateBusinessStatus(id, request.active());
+    }
+
+    @PatchMapping("/businesses/{id}/owner-password")
+    public OwnerPasswordResetResponse resetOwnerPassword(@PathVariable Long id, @Valid @RequestBody OwnerPasswordResetRequest request, Authentication authentication) {
+        access.requireSuperAdmin(authentication);
+        return content.resetOwnerPassword(id, request.password());
     }
 
     @DeleteMapping("/businesses/{id}")

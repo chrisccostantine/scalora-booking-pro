@@ -764,6 +764,10 @@ function adminLoginLink() {
   return '/admin';
 }
 
+function generateTemporaryPassword() {
+  return `${Math.random().toString(36).slice(2, 10)}A!9`;
+}
+
 function imageList(value) {
   if (!value) return [];
   try {
@@ -837,6 +841,7 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
   const [editingBusiness, setEditingBusiness] = useState(null);
   const [draft, setDraft] = useState(emptyBusinessDraft);
   const [operationPanel, setOperationPanel] = useState(null);
+  const [ownerPasswordNotice, setOwnerPasswordNotice] = useState('');
 
   const selectedBusiness = businesses.find((business) => String(business.id) === String(selectedBusinessId)) || businesses[0];
 
@@ -900,6 +905,30 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
     setBusinesses((current) => current.filter((item) => item.id !== business.id));
     if (String(selectedBusinessId) === String(business.id)) setSelectedBusinessId('');
     api.getSuperAnalytics().then(setAnalytics).catch(() => {});
+  };
+
+  const resetOwnerPassword = async (business) => {
+    if (!business?.ownerEmail) {
+      window.alert('Add an owner email to this business before resetting the password.');
+      return;
+    }
+    try {
+      const password = generateTemporaryPassword();
+      const result = await api.resetBusinessOwnerPassword(business.id, password);
+      const ownerDetails = [
+        `Owner dashboard: ${window.location.origin}${adminLoginLink()}`,
+        `Business: ${result.businessName || business.name}`,
+        `Email: ${result.email || business.ownerEmail}`,
+        `Temporary password: ${password}`,
+      ].join('\n');
+      navigator.clipboard?.writeText(ownerDetails);
+      setOwnerPasswordNotice(`New owner password generated for ${result.email || business.ownerEmail}. Login details were copied.`);
+      setBusinesses((current) => current.map((item) => (
+        item.id === business.id ? { ...item, ownerEmail: result.email || business.ownerEmail } : item
+      )));
+    } catch (error) {
+      window.alert(error.message || 'Could not reset owner password.');
+    }
   };
 
   const openBusinessOperations = (business, section) => {
@@ -1035,6 +1064,8 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
             <BusinessPreview
               business={selectedBusiness}
               onEdit={() => selectedBusiness && openEdit(selectedBusiness)}
+              onResetOwnerPassword={() => selectedBusiness && resetOwnerPassword(selectedBusiness)}
+              ownerPasswordNotice={ownerPasswordNotice}
               onManageServices={() => selectedBusiness && openBusinessOperations(selectedBusiness, 'services')}
               onManageStaff={() => selectedBusiness && openBusinessOperations(selectedBusiness, 'staff')}
               onManageBookings={() => selectedBusiness && openBusinessOperations(selectedBusiness, 'bookings')}
@@ -1166,7 +1197,7 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
   );
 }
 
-function BusinessPreview({ business, onEdit, onManageServices, onManageStaff, onManageBookings }) {
+function BusinessPreview({ business, onEdit, onResetOwnerPassword, ownerPasswordNotice, onManageServices, onManageStaff, onManageBookings }) {
   if (!business) {
     return (
       <section className="rounded-lg border border-line bg-white p-5 shadow-sm">
@@ -1200,10 +1231,12 @@ function BusinessPreview({ business, onEdit, onManageServices, onManageStaff, on
         <div className="mt-5 flex flex-wrap gap-2">
           <a className="btn-primary" href={publicLink(business.slug)} target="_blank" rel="noreferrer"><ExternalLink size={17} /> View Public Page</a>
           <button className="btn-secondary" onClick={onEdit}><Edit3 size={17} /> Edit Business</button>
+          <button className="btn-secondary" onClick={onResetOwnerPassword}><Copy size={17} /> Reset Owner Password</button>
           <button className="btn-secondary" onClick={onManageServices}>Manage Services</button>
           <button className="btn-secondary" onClick={onManageStaff}>Manage Staff</button>
           <button className="btn-secondary" onClick={onManageBookings}>Manage Bookings</button>
         </div>
+        {ownerPasswordNotice && <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{ownerPasswordNotice}</p>}
       </div>
     </section>
   );
@@ -1374,7 +1407,7 @@ function BusinessModal({ draft, setDraft, editing, onClose, onSubmit }) {
               type="button"
               className="btn-secondary w-full"
               onClick={() => {
-                const generated = Math.random().toString(36).slice(2, 10) + 'A!9';
+                const generated = generateTemporaryPassword();
                 setTempPassword(generated);
                 update('temporaryPassword', generated);
                 navigator.clipboard?.writeText(generated);
