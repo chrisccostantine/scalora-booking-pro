@@ -1519,14 +1519,13 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
       api.getAdminBusinessInfo(managedBusinessId).then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
       return;
     }
-    const scope = { ...filters, businessId: managedBusinessId };
-    api.getBookings(scope).then(setBookings).catch(() => setBookings([]));
-    api.getBookings({ businessId: managedBusinessId }).then(setAllBookings).catch(() => setAllBookings([]));
-    api.getStaff(managedBusinessId).then(setStaff).catch(() => setStaff([]));
-    api.getAdminServices(managedBusinessId).then(setServices).catch(() => {});
-    api.getAdminTestimonials(managedBusinessId).then(setTestimonials).catch(() => {});
-    api.getAdminBusinessInfo(managedBusinessId).then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
-    api.getAvailability(managedBusinessId).then(setAvailability).catch(() => setAvailability([]));
+    api.getBusinessAdminBookings(filters).then(setBookings).catch(() => setBookings([]));
+    api.getBusinessAdminBookings().then(setAllBookings).catch(() => setAllBookings([]));
+    api.getBusinessAdminStaff().then(setStaff).catch(() => setStaff([]));
+    api.getBusinessAdminServices().then(setServices).catch(() => {});
+    api.getBusinessAdminTestimonials().then(setTestimonials).catch(() => {});
+    api.getBusinessAdminInfo().then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
+    api.getBusinessAdminAvailability().then(setAvailability).catch(() => setAvailability([]));
   };
 
   useEffect(loadAdminData, [filters.status, filters.date, filters.serviceId, selectedBusinessId, adminUser?.businessId, isSuperAdmin]);
@@ -1567,7 +1566,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
     }
     try {
       const payload = { ...serviceDraft, price: Number(serviceDraft.price), durationMinutes: Number(serviceDraft.durationMinutes) };
-      const saved = editingServiceId ? await api.updateService(editingServiceId, payload) : await api.createService(payload, managedBusinessId);
+      const saved = editingServiceId ? await api.updateBusinessAdminService(editingServiceId, payload) : await api.createBusinessAdminService(payload);
       setServices((current) => editingServiceId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
       setEditingServiceId(null);
       setServiceDraft({ name: '', description: '', durationMinutes: 60, price: 80, active: true });
@@ -1589,7 +1588,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
       return;
     }
     try {
-      const saved = editingStaffId ? await api.updateStaff(editingStaffId, staffDraft) : await api.createStaff(staffDraft, managedBusinessId);
+      const saved = editingStaffId ? await api.updateBusinessAdminStaff(editingStaffId, staffDraft) : await api.createBusinessAdminStaff(staffDraft);
       setStaff((current) => editingStaffId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
       setEditingStaffId(null);
       setStaffDraft({ name: '', role: '', email: '', phoneNumber: '', active: true });
@@ -1604,7 +1603,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
     setAdminMessage('');
     try {
       const payload = { ...testimonialDraft, rating: Number(testimonialDraft.rating) };
-      const saved = editingTestimonialId ? await api.updateTestimonial(editingTestimonialId, payload) : await api.createTestimonial(payload, managedBusinessId);
+      const saved = editingTestimonialId ? await api.updateBusinessAdminTestimonial(editingTestimonialId, payload) : await api.createBusinessAdminTestimonial(payload);
       setTestimonials((current) => editingTestimonialId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
       setEditingTestimonialId(null);
       setTestimonialDraft({ customerName: '', content: '', rating: 5, active: true });
@@ -1682,8 +1681,8 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
     try {
       const payload = { ...availabilityDraft, capacity: Number(availabilityDraft.capacity) };
       const saved = editingAvailabilityId
-        ? await api.updateAvailability(editingAvailabilityId, payload)
-        : await api.createAvailability(payload, managedBusinessId);
+        ? await api.updateBusinessAdminAvailability(editingAvailabilityId, payload)
+        : await api.createBusinessAdminAvailability(payload);
       setAvailability((current) => editingAvailabilityId
         ? current.map((item) => (item.id === saved.id ? saved : item))
         : [...current, saved]);
@@ -1853,7 +1852,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
               <select
                 value={booking.status}
                 onChange={async (event) => {
-                  const updated = await api.updateBookingStatus(booking.id, event.target.value);
+                  const updated = await api.updateBusinessAdminBookingStatus(booking.id, event.target.value);
                   setBookings((current) => current.map((item) => (item.id === updated.id ? updated : item)));
                   setAllBookings((current) => current.map((item) => (item.id === updated.id ? updated : item)));
                 }}
@@ -1882,7 +1881,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
                 setAvailabilityDraft({ dayOfWeek: item.dayOfWeek, startTime: item.startTime, endTime: item.endTime, capacity: item.capacity, active: item.active });
               }}
               onDelete={async (id) => {
-                await api.deleteAvailability(id);
+                await api.deleteBusinessAdminAvailability(id);
                 setAvailability((current) => current.filter((item) => item.id !== id));
                 if (editingAvailabilityId === id) setEditingAvailabilityId(null);
               }}
@@ -1903,7 +1902,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
                 setEditingServiceId(item.id);
                 setServiceDraft({ name: item.name, description: item.description, durationMinutes: item.durationMinutes, price: item.price, active: item.active });
               }}
-              onDelete={async (id) => { await api.deleteService(id); setServices((current) => current.filter((item) => item.id !== id)); }}
+              onDelete={async (id) => { await api.deleteBusinessAdminService(id); setServices((current) => current.filter((item) => item.id !== id)); }}
             />
           </Manager>
 
@@ -1919,7 +1918,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
                 setEditingStaffId(item.id);
                 setStaffDraft({ name: item.name, role: item.role, email: item.email || '', phoneNumber: item.phoneNumber || '', active: item.active });
               }}
-              onDelete={async (id) => { await api.deleteStaff(id); setStaff((current) => current.filter((item) => item.id !== id)); }}
+              onDelete={async (id) => { await api.deleteBusinessAdminStaff(id); setStaff((current) => current.filter((item) => item.id !== id)); }}
             />
           </Manager>
 
@@ -1934,7 +1933,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
                 setEditingTestimonialId(item.id);
                 setTestimonialDraft({ customerName: item.customerName, content: item.content, rating: item.rating, active: item.active });
               }}
-              onDelete={async (id) => { await api.deleteTestimonial(id); setTestimonials((current) => current.filter((item) => item.id !== id)); }}
+              onDelete={async (id) => { await api.deleteBusinessAdminTestimonial(id); setTestimonials((current) => current.filter((item) => item.id !== id)); }}
             />
           </Manager>
         </div>
@@ -1955,7 +1954,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
             setAdminError('');
             setAdminMessage('');
             try {
-              setBusinessInfo(await api.updateBusinessInfo(businessInfo, managedBusinessId));
+              setBusinessInfo(await api.updateBusinessAdminInfo(businessInfo));
               setAdminMessage('Business settings saved.');
             } catch (error) {
               setAdminError(error.message || 'Could not save business settings.');

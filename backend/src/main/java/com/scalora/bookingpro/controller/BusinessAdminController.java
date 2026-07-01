@@ -1,6 +1,7 @@
 package com.scalora.bookingpro.controller;
 
 import com.scalora.bookingpro.dto.AdminDtos.AvailabilityResponse;
+import com.scalora.bookingpro.dto.AdminDtos.AvailabilityRequest;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoRequest;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoResponse;
 import com.scalora.bookingpro.dto.AdminDtos.StaffRequest;
@@ -17,7 +18,9 @@ import com.scalora.bookingpro.service.AdminContentService;
 import com.scalora.bookingpro.service.BookingService;
 import com.scalora.bookingpro.service.ServiceCatalogService;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -43,8 +46,13 @@ public class BusinessAdminController {
     }
 
     @GetMapping("/bookings")
-    public List<BookingResponse> bookings(@RequestParam(required = false) BookingStatus status, Authentication authentication) {
-        return bookings.findAdmin(access.requiredBusinessScope(authentication, null), status, null, null);
+    public List<BookingResponse> bookings(
+        @RequestParam(required = false) BookingStatus status,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+        @RequestParam(required = false) Long serviceId,
+        Authentication authentication
+    ) {
+        return bookings.findAdmin(access.requiredBusinessScope(authentication, null), status, date, serviceId);
     }
 
     @PatchMapping("/bookings/{id}/status")
@@ -121,6 +129,23 @@ public class BusinessAdminController {
     @GetMapping("/availability")
     public List<AvailabilityResponse> availability(Authentication authentication) {
         return content.availability(access.requiredBusinessScope(authentication, null));
+    }
+
+    @PostMapping("/availability")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AvailabilityResponse createAvailability(@Valid @RequestBody AvailabilityRequest request, Authentication authentication) {
+        return content.createAvailability(access.requiredBusinessScope(authentication, null), request);
+    }
+
+    @PutMapping("/availability/{id}")
+    public AvailabilityResponse updateAvailability(@PathVariable Long id, @Valid @RequestBody AvailabilityRequest request, Authentication authentication) {
+        return content.updateAvailability(id, request, access.currentUser(authentication));
+    }
+
+    @DeleteMapping("/availability/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAvailability(@PathVariable Long id, Authentication authentication) {
+        content.deleteAvailability(id, access.currentUser(authentication));
     }
 
     @PutMapping("/business-settings")

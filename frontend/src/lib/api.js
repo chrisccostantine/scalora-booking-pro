@@ -1,7 +1,14 @@
-const API_BASE_URL =
+const configuredApiBase =
   window.__SCALORA_CONFIG__?.API_BASE_URL ||
   import.meta.env.VITE_API_BASE_URL ||
   'http://localhost:8080/api';
+
+const API_BASE_URL = normalizeApiBaseUrl(configuredApiBase);
+
+function normalizeApiBaseUrl(value) {
+  const trimmed = String(value || '').replace(/\/+$/, '');
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+}
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('scalora_token');
@@ -130,4 +137,31 @@ export const api = {
   getAdminBusinessInfo: (businessId) => request(scopedPath('/admin/business-info', businessId)),
   updateBusinessInfo: (payload, businessId) =>
     request(scopedPath('/admin/business-info', businessId), { method: 'PUT', body: JSON.stringify(payload) }),
+  getBusinessAdminServices: () => request('/business-admin/services'),
+  createBusinessAdminService: (payload) => request('/business-admin/services', { method: 'POST', body: JSON.stringify(payload) }),
+  updateBusinessAdminService: (id, payload) => request(`/business-admin/services/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteBusinessAdminService: (id) => request(`/business-admin/services/${id}`, { method: 'DELETE' }),
+  getBusinessAdminStaff: () => request('/business-admin/staff'),
+  createBusinessAdminStaff: (payload) => request('/business-admin/staff', { method: 'POST', body: JSON.stringify(payload) }),
+  updateBusinessAdminStaff: (id, payload) => request(`/business-admin/staff/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteBusinessAdminStaff: (id) => request(`/business-admin/staff/${id}`, { method: 'DELETE' }),
+  getBusinessAdminBookings: (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.date) query.set('date', params.date);
+    if (params.serviceId) query.set('serviceId', params.serviceId);
+    return request(`/business-admin/bookings${query.toString() ? `?${query}` : ''}`);
+  },
+  updateBusinessAdminBookingStatus: (id, status) =>
+    request(`/business-admin/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  getBusinessAdminTestimonials: () => request('/business-admin/testimonials'),
+  createBusinessAdminTestimonial: (payload) => request('/business-admin/testimonials', { method: 'POST', body: JSON.stringify(payload) }),
+  updateBusinessAdminTestimonial: (id, payload) => request(`/business-admin/testimonials/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteBusinessAdminTestimonial: (id) => request(`/business-admin/testimonials/${id}`, { method: 'DELETE' }),
+  getBusinessAdminAvailability: () => request('/business-admin/availability'),
+  createBusinessAdminAvailability: (payload) => request('/business-admin/availability', { method: 'POST', body: JSON.stringify(payload) }),
+  updateBusinessAdminAvailability: (id, payload) => request(`/business-admin/availability/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteBusinessAdminAvailability: (id) => request(`/business-admin/availability/${id}`, { method: 'DELETE' }),
+  getBusinessAdminInfo: () => request('/business-admin/dashboard'),
+  updateBusinessAdminInfo: (payload) => request('/business-admin/business-settings', { method: 'PUT', body: JSON.stringify(payload) }),
 };
