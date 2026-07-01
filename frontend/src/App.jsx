@@ -307,7 +307,9 @@ function PublicSite({ businessInfo, services, staff, testimonials, businesses, p
               <button className="btn-secondary" onClick={() => onNavigate('#services')}>View Services</button>
             </div>
           </div>
-          <BookingForm services={services} profileSlug={profileSlug} compact />
+          <div id="booking">
+            <BookingForm services={services} profileSlug={profileSlug} compact />
+          </div>
         </div>
       </section>
 
@@ -349,16 +351,6 @@ function PublicSite({ businessInfo, services, staff, testimonials, businesses, p
         </section>
       )}
       <BusinessDirectory businesses={businesses} />
-      <section id="booking" className="section bg-mist">
-        <div className="section-inner grid gap-8 lg:grid-cols-[0.72fr_1fr]">
-          <div>
-            <p className="text-sm font-bold uppercase text-coral">Online booking</p>
-            <h2 className="mt-3 text-3xl font-bold">Reserve a time in under a minute.</h2>
-            <p className="mt-4 text-graphite">The API prevents duplicate appointments for the same service, date, and time, then stores each booking with a lifecycle status.</p>
-          </div>
-          <BookingForm services={services} profileSlug={profileSlug} />
-        </div>
-      </section>
       <TestimonialsSection testimonials={testimonials} />
       <ContactSection businessInfo={businessInfo} profileSlug={profileSlug} />
     </main>
