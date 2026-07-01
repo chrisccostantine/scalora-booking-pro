@@ -125,8 +125,13 @@ function App() {
   }, [profileSlug]);
 
   const go = (hash) => {
+    setRoute(hash);
     window.location.hash = hash;
     setMobileOpen(false);
+    window.requestAnimationFrame(() => {
+      const target = document.querySelector(hash);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   const adminVisible = window.location.pathname === '/admin' || route === '#admin' || route === '#dashboard';
@@ -372,21 +377,26 @@ function PlatformHome({ businesses, onNavigate }) {
 }
 
 function BusinessDirectory({ businesses }) {
-  if (!businesses.length) return null;
   return (
     <section className="section bg-white">
       <div className="section-inner">
         <p className="text-sm font-bold uppercase text-coral">Scalora businesses</p>
         <h2 className="mt-3 text-3xl font-bold">One platform, many business profiles.</h2>
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {businesses.map((business) => (
-            <a key={business.id} className="rounded-lg border border-line bg-[#fbfdfc] p-5 transition hover:border-teal" href={`/b/${business.slug}#home`}>
-              <p className="font-bold">{business.name}</p>
-              <p className="mt-2 text-sm text-graphite">scalorabooking.com/b/{business.slug}</p>
-              <p className="mt-3 text-sm leading-6 text-graphite">{business.tagline}</p>
-            </a>
-          ))}
-        </div>
+        {businesses.length === 0 ? (
+          <div className="mt-8 rounded-lg border border-line bg-[#fbfdfc] p-6 text-sm text-graphite">
+            No businesses are published yet. Add an active business from the Super Admin dashboard and it will appear here.
+          </div>
+        ) : (
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {businesses.map((business) => (
+              <a key={business.id} className="rounded-lg border border-line bg-[#fbfdfc] p-5 transition hover:border-teal" href={`/b/${business.slug}#home`}>
+                <p className="font-bold">{business.name}</p>
+                <p className="mt-2 text-sm text-graphite">{window.location.origin}/b/{business.slug}</p>
+                <p className="mt-3 text-sm leading-6 text-graphite">{business.tagline}</p>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
