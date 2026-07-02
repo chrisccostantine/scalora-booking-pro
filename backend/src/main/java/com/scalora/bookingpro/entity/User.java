@@ -16,6 +16,9 @@ public class User {
     @Column(nullable = false)
     private String passwordHash;
 
+    @Column(unique = true)
+    private String sessionToken;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role = Role.BUSINESS_ADMIN;
@@ -33,6 +36,8 @@ public class User {
     public void setEmail(String email) { this.email = email; }
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public String getSessionToken() { return sessionToken; }
+    public void setSessionToken(String sessionToken) { this.sessionToken = sessionToken; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
     public Business getBusiness() { return business; }

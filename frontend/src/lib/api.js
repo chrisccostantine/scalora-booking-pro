@@ -5,9 +5,14 @@ const configuredApiBase =
 
 const API_BASE_URL = normalizeApiBaseUrl(configuredApiBase);
 let runtimeToken = cleanToken(localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || '');
+let runtimeSession = localStorage.getItem('scalora_session') || sessionStorage.getItem('scalora_session') || '';
 
 export function setAuthToken(token) {
   runtimeToken = cleanToken(token);
+}
+
+export function setSessionToken(sessionToken) {
+  runtimeSession = String(sessionToken || '').trim();
 }
 
 function normalizeApiBaseUrl(value) {
@@ -18,11 +23,13 @@ function normalizeApiBaseUrl(value) {
 async function request(path, options = {}) {
   const savedAdmin = JSON.parse(localStorage.getItem('scalora_admin') || '{}');
   const token = cleanToken(runtimeToken || localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || savedAdmin.token || savedAdmin.accessToken || '');
-  const requestPath = token && options.auth !== false ? appendAccessToken(path, token) : path;
+  const sessionToken = runtimeSession || localStorage.getItem('scalora_session') || sessionStorage.getItem('scalora_session') || savedAdmin.sessionToken || '';
+  const requestPath = options.auth !== false ? appendAuthParams(path, token, sessionToken) : path;
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
     ...(token && options.auth !== false ? { Authorization: `Bearer ${token}`, 'X-Auth-Token': token } : {}),
+    ...(sessionToken && options.auth !== false ? { 'X-Session-Token': sessionToken } : {}),
   };
 
   const response = await fetch(`${API_BASE_URL}${requestPath}`, {
@@ -60,9 +67,16 @@ function cleanToken(token) {
   return value.split('.').length === 3 ? value : '';
 }
 
-function appendAccessToken(path, token) {
+function appendAuthParams(path, token, sessionToken) {
+  const params = new URLSearchParams();
+  if (token) {
+    params.set('access_token', token);
+    params.set('token', token);
+  }
+  if (sessionToken) params.set('session', sessionToken);
+  if (!params.toString()) return path;
   const separator = path.includes('?') ? '&' : '?';
-  return `${path}${separator}${new URLSearchParams({ access_token: token, token })}`;
+  return `${path}${separator}${params}`;
 }
 
 function scopedPath(path, businessId) {

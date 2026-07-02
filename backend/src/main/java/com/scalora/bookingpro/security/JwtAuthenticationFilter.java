@@ -1,5 +1,6 @@
 package com.scalora.bookingpro.security;
 
+import com.scalora.bookingpro.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,15 +16,26 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final UserRepository users;
 
-    public JwtAuthenticationFilter(JwtService jwtService, CustomUserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtService jwtService, CustomUserDetailsService userDetailsService, UserRepository users) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.users = users;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
         throws ServletException, IOException {
+        String sessionToken = request.getHeader("X-Session-Token");
+        if ((sessionToken == null || sessionToken.isBlank()) && !isPublicRequest(request)) {
+            sessionToken = request.getParameter("session");
+        }
+        if (authenticateSession(sessionToken, request)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         String header = request.getHeader("Authorization");
         String token = null;
         if (header != null && header.startsWith("Bearer ")) {
@@ -54,6 +66,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.clearContext();
         }
         chain.doFilter(request, response);
+    }
+
+    private boolean authenticateSession(String sessionToken, HttpServletRequest request) {
+        if (sessionToken == null || sessionToken.isBlank() || SecurityContextHolder.getContext().getAuthentication() != null) {
+            return false;
+        }
+        return users.findBySessionToken(sessionToken).map(user -> {
+            var details = userDetailsService.loadUserByUsername(user.getEmail());
+            var auth = new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities());
+            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(auth);
+            return true;
+        }).orElse(false);
     }
 
     private boolean isPublicRequest(HttpServletRequest request) {

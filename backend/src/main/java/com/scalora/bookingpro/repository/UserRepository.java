@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
+    Optional<User> findBySessionToken(String sessionToken);
     boolean existsByEmail(String email);
     List<User> findByBusinessIdOrderByEmailAsc(Long businessId);
     void deleteByBusinessId(Long businessId);

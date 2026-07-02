@@ -25,7 +25,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { api, setAuthToken } from './lib/api';
+import { api, setAuthToken, setSessionToken } from './lib/api';
 
 const fallbackServices = [];
 const fallbackTestimonials = [];
@@ -90,12 +90,20 @@ function App() {
   }, [token]);
 
   useEffect(() => {
+    const storedSession = localStorage.getItem('scalora_session') || sessionStorage.getItem('scalora_session') || adminUser?.sessionToken || '';
+    setSessionToken(storedSession);
+  }, [adminUser]);
+
+  useEffect(() => {
     if (!token && adminUser) {
       localStorage.removeItem('scalora_token');
       sessionStorage.removeItem('scalora_token');
+      localStorage.removeItem('scalora_session');
+      sessionStorage.removeItem('scalora_session');
       localStorage.removeItem('scalora_admin');
       setAdminUser(null);
       setAuthToken('');
+      setSessionToken('');
       if (window.location.pathname === '/admin') window.location.hash = '#admin';
     }
   }, [token, adminUser]);
@@ -109,6 +117,7 @@ function App() {
       setToken(null);
       setAdminUser(null);
       setAuthToken('');
+      setSessionToken('');
       if (window.location.pathname === '/admin') window.location.hash = '#admin';
     };
     window.addEventListener('hashchange', onHashChange);
@@ -725,8 +734,13 @@ function AdminLogin({ setToken, setAdminUser }) {
       const adminSession = { ...result, token: loginToken };
       localStorage.setItem('scalora_token', loginToken);
       sessionStorage.setItem('scalora_token', loginToken);
+      if (result.sessionToken) {
+        localStorage.setItem('scalora_session', result.sessionToken);
+        sessionStorage.setItem('scalora_session', result.sessionToken);
+      }
       localStorage.setItem('scalora_admin', JSON.stringify(adminSession));
       setAuthToken(loginToken);
+      setSessionToken(result.sessionToken);
       setToken(loginToken);
       setAdminUser(adminSession);
       window.location.hash = '#dashboard';
@@ -892,8 +906,11 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
   const logout = () => {
     localStorage.removeItem('scalora_token');
     sessionStorage.removeItem('scalora_token');
+    localStorage.removeItem('scalora_session');
+    sessionStorage.removeItem('scalora_session');
     localStorage.removeItem('scalora_admin');
     setAuthToken('');
+    setSessionToken('');
     setToken(null);
     setAdminUser(null);
     window.location.hash = '#admin';
@@ -1583,8 +1600,11 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
   const logout = () => {
     localStorage.removeItem('scalora_token');
     sessionStorage.removeItem('scalora_token');
+    localStorage.removeItem('scalora_session');
+    sessionStorage.removeItem('scalora_session');
     localStorage.removeItem('scalora_admin');
     setAuthToken('');
+    setSessionToken('');
     setToken(null);
     setAdminUser(null);
     window.location.hash = '#admin';
