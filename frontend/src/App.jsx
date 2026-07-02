@@ -1571,8 +1571,8 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
       if (!managedBusinessId && !adminUser?.businessId) return;
       api.getBusinessAdminBookings(filters).then(setBookings).catch(() => setBookings([]));
       api.getBusinessAdminBookings().then(setAllBookings).catch(() => setAllBookings([]));
-      api.getBusinessAdminStaff().then(setStaff).catch(() => setStaff([]));
-      api.getBusinessAdminServices().then(setServices).catch(() => setServices([]));
+      api.getStaff(managedBusinessId).then(setStaff).catch(() => setStaff([]));
+      api.getAdminServices(managedBusinessId).then(setServices).catch(() => setServices([]));
       api.getBusinessAdminTestimonials().then(setTestimonials).catch(() => setTestimonials([]));
       api.getBusinessAdminInfo().then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
       api.getBusinessAdminAvailability().then(setAvailability).catch(() => setAvailability([]));
@@ -1631,7 +1631,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
     }
     try {
       const payload = { ...serviceDraft, price: Number(serviceDraft.price), durationMinutes: Number(serviceDraft.durationMinutes) };
-      const saved = editingServiceId ? await api.updateBusinessAdminService(editingServiceId, payload) : await api.createBusinessAdminService(payload);
+      const saved = editingServiceId ? await api.updateService(editingServiceId, payload) : await api.createService(payload, managedBusinessId);
       setServices((current) => editingServiceId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
       setEditingServiceId(null);
       setServiceDraft({ name: '', description: '', durationMinutes: 60, price: 80, active: true });
@@ -1653,7 +1653,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
       return;
     }
     try {
-      const saved = editingStaffId ? await api.updateBusinessAdminStaff(editingStaffId, staffDraft) : await api.createBusinessAdminStaff(staffDraft);
+      const saved = editingStaffId ? await api.updateStaff(editingStaffId, staffDraft) : await api.createStaff(staffDraft, managedBusinessId);
       setStaff((current) => editingStaffId ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved]);
       setEditingStaffId(null);
       setStaffDraft({ name: '', role: '', email: '', phoneNumber: '', active: true });
@@ -1990,7 +1990,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
                 setEditingServiceId(item.id);
                 setServiceDraft({ name: item.name, description: item.description, durationMinutes: item.durationMinutes, price: item.price, active: item.active });
               }}
-              onDelete={async (id) => { await api.deleteBusinessAdminService(id); setServices((current) => current.filter((item) => item.id !== id)); }}
+              onDelete={async (id) => { await api.deleteService(id); setServices((current) => current.filter((item) => item.id !== id)); }}
             />
           </Manager>
 
@@ -2006,7 +2006,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
                 setEditingStaffId(item.id);
                 setStaffDraft({ name: item.name, role: item.role, email: item.email || '', phoneNumber: item.phoneNumber || '', active: item.active });
               }}
-              onDelete={async (id) => { await api.deleteBusinessAdminStaff(id); setStaff((current) => current.filter((item) => item.id !== id)); }}
+              onDelete={async (id) => { await api.deleteStaff(id); setStaff((current) => current.filter((item) => item.id !== id)); }}
             />
           </Manager>
 
