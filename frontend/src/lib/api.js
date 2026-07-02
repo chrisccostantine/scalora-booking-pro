@@ -11,11 +11,12 @@ function normalizeApiBaseUrl(value) {
 }
 
 async function request(path, options = {}) {
-  const token = localStorage.getItem('scalora_token');
+  const savedAdmin = JSON.parse(localStorage.getItem('scalora_admin') || '{}');
+  const token = localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || savedAdmin.token || savedAdmin.accessToken || '';
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
-    ...(token && options.auth !== false ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token && options.auth !== false ? { Authorization: `Bearer ${token}`, 'X-Auth-Token': token } : {}),
   };
 
   const response = await fetch(`${API_BASE_URL}${path}`, {

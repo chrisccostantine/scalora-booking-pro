@@ -73,7 +73,7 @@ function App() {
   const [testimonials, setTestimonials] = useState(fallbackTestimonials);
   const [businessInfo, setBusinessInfo] = useState(fallbackBusiness);
   const [businessUnavailable, setBusinessUnavailable] = useState(false);
-  const [token, setToken] = useState(localStorage.getItem('scalora_token'));
+  const [token, setToken] = useState(localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token'));
   const [adminUser, setAdminUser] = useState(() => {
     const stored = localStorage.getItem('scalora_admin');
     return stored ? JSON.parse(stored) : null;
@@ -687,10 +687,16 @@ function AdminLogin({ setToken, setAdminUser }) {
     setError('');
     try {
       const result = await api.login(form);
-      localStorage.setItem('scalora_token', result.token);
-      localStorage.setItem('scalora_admin', JSON.stringify(result));
-      setToken(result.token);
-      setAdminUser(result);
+      const loginToken = result.token || result.accessToken;
+      if (!loginToken) {
+        throw new Error('Login succeeded but no authentication token was returned.');
+      }
+      const adminSession = { ...result, token: loginToken };
+      localStorage.setItem('scalora_token', loginToken);
+      sessionStorage.setItem('scalora_token', loginToken);
+      localStorage.setItem('scalora_admin', JSON.stringify(adminSession));
+      setToken(loginToken);
+      setAdminUser(adminSession);
       window.location.hash = '#dashboard';
     } catch (loginError) {
       setError(loginError.message);
@@ -857,6 +863,7 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
 
   const logout = () => {
     localStorage.removeItem('scalora_token');
+    sessionStorage.removeItem('scalora_token');
     localStorage.removeItem('scalora_admin');
     setToken(null);
     setAdminUser(null);
@@ -1539,6 +1546,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
 
   const logout = () => {
     localStorage.removeItem('scalora_token');
+    sessionStorage.removeItem('scalora_token');
     localStorage.removeItem('scalora_admin');
     setToken(null);
     setAdminUser(null);

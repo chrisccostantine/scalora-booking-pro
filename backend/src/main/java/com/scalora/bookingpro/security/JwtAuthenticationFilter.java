@@ -25,12 +25,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
         throws ServletException, IOException {
         String header = request.getHeader("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
+        String token = null;
+        if (header != null && header.startsWith("Bearer ")) {
+            token = header.substring(7);
+        } else {
+            token = request.getHeader("X-Auth-Token");
+        }
+        if (token == null || token.isBlank()) {
             chain.doFilter(request, response);
             return;
         }
 
-        String token = header.substring(7);
         try {
             String email = jwtService.subject(token);
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null && jwtService.isValid(token)) {
