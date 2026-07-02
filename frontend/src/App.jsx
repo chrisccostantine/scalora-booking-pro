@@ -80,6 +80,7 @@ function App() {
   const [businessInfo, setBusinessInfo] = useState(fallbackBusiness);
   const [businessUnavailable, setBusinessUnavailable] = useState(false);
   const [token, setToken] = useState(cleanToken(localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token')));
+  const [authVerified, setAuthVerified] = useState(false);
   const [adminUser, setAdminUser] = useState(() => {
     const stored = localStorage.getItem('scalora_admin');
     return stored ? JSON.parse(stored) : null;
@@ -102,11 +103,47 @@ function App() {
       sessionStorage.removeItem('scalora_session');
       localStorage.removeItem('scalora_admin');
       setAdminUser(null);
+      setAuthVerified(false);
       setAuthToken('');
       setSessionToken('');
       if (window.location.pathname === '/admin') window.location.hash = '#admin';
     }
   }, [token, adminUser]);
+
+  useEffect(() => {
+    if (!token) {
+      setAuthVerified(false);
+      return;
+    }
+    setAuthVerified(false);
+    let cancelled = false;
+    api.me().then((user) => {
+      if (cancelled) return;
+      const refreshedAdmin = {
+        ...user,
+        token,
+      };
+      if (user.sessionToken) {
+        localStorage.setItem('scalora_session', user.sessionToken);
+        sessionStorage.setItem('scalora_session', user.sessionToken);
+        setSessionToken(user.sessionToken);
+      }
+      localStorage.setItem('scalora_admin', JSON.stringify(refreshedAdmin));
+      setAdminUser(refreshedAdmin);
+      setAuthVerified(true);
+    }).catch(() => {
+      if (cancelled) return;
+      setToken(null);
+      setAdminUser(null);
+      setAuthVerified(false);
+      setAuthToken('');
+      setSessionToken('');
+      if (window.location.pathname === '/admin') window.location.hash = '#admin';
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   useEffect(() => {
     const onHashChange = () => {
@@ -116,6 +153,7 @@ function App() {
     const onAuthExpired = () => {
       setToken(null);
       setAdminUser(null);
+      setAuthVerified(false);
       setAuthToken('');
       setSessionToken('');
       if (window.location.pathname === '/admin') window.location.hash = '#admin';
@@ -204,7 +242,7 @@ function App() {
     <div className="min-h-screen bg-[#f7faf9] text-ink">
       <Header businessInfo={businessInfo} onNavigate={go} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} isPlatform={!profileSlug} />
       {adminVisible ? (
-        token ? (
+        token && authVerified && adminUser ? (
           <AdminDashboard
             token={token}
             setToken={setToken}
@@ -219,6 +257,8 @@ function App() {
             businesses={businesses}
             setBusinesses={setBusinesses}
           />
+        ) : token ? (
+          <AdminVerifying />
         ) : (
           <AdminLogin setToken={setToken} setAdminUser={setAdminUser} />
         )
@@ -766,12 +806,28 @@ function AdminLogin({ setToken, setAdminUser }) {
           </div>
           <div>
             <label htmlFor="admin-password">Password</label>
-            <input id="admin-password" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required />
+            <input id="admin-password" type="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required />
           </div>
         </div>
         <button className="btn-primary mt-6 w-full">Login</button>
         {error && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       </form>
+    </main>
+  );
+}
+
+function AdminVerifying() {
+  return (
+    <main className="section min-h-[calc(100vh-72px)] bg-mist">
+      <section className="mx-auto max-w-md rounded-lg border border-line bg-white p-6 shadow-soft">
+        <div className="flex items-center gap-3">
+          <ShieldCheck className="text-teal" />
+          <div>
+            <h1 className="text-2xl font-bold">Checking Session</h1>
+            <p className="mt-1 text-sm text-graphite">Verifying your admin login...</p>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
@@ -1460,6 +1516,7 @@ function BusinessModal({ draft, setDraft, editing, onClose, onSubmit }) {
             </div>
             <input
               type="password"
+              autoComplete="new-password"
               placeholder={editing ? 'New owner password (leave blank to keep current)' : 'Business Owner Password'}
               value={draft.ownerPassword}
               onChange={(event) => update('ownerPassword', event.target.value)}
@@ -2057,18 +2114,21 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
           <div className="grid gap-3 md:grid-cols-3">
             <input
               type="password"
+              autoComplete="current-password"
               placeholder="Current password"
               value={passwordDraft.currentPassword}
               onChange={(event) => setPasswordDraft({ ...passwordDraft, currentPassword: event.target.value })}
             />
             <input
               type="password"
+              autoComplete="new-password"
               placeholder="New password"
               value={passwordDraft.newPassword}
               onChange={(event) => setPasswordDraft({ ...passwordDraft, newPassword: event.target.value })}
             />
             <input
               type="password"
+              autoComplete="new-password"
               placeholder="Confirm new password"
               value={passwordDraft.confirmPassword}
               onChange={(event) => setPasswordDraft({ ...passwordDraft, confirmPassword: event.target.value })}
