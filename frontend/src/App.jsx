@@ -115,6 +115,10 @@ function App() {
       setAuthVerified(false);
       return;
     }
+    if (adminUser?.token === token || adminUser?.accessToken === token) {
+      setAuthVerified(true);
+      return;
+    }
     setAuthVerified(false);
     let cancelled = false;
     api.me().then((user) => {
@@ -143,7 +147,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, adminUser]);
 
   useEffect(() => {
     const onHashChange = () => {
@@ -260,7 +264,7 @@ function App() {
         ) : token ? (
           <AdminVerifying />
         ) : (
-          <AdminLogin setToken={setToken} setAdminUser={setAdminUser} />
+          <AdminLogin setToken={setToken} setAdminUser={setAdminUser} setAuthVerified={setAuthVerified} />
         )
       ) : (
         <PublicSite
@@ -758,7 +762,7 @@ function ContactSection({ businessInfo, profileSlug }) {
   );
 }
 
-function AdminLogin({ setToken, setAdminUser }) {
+function AdminLogin({ setToken, setAdminUser, setAuthVerified }) {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
@@ -783,6 +787,7 @@ function AdminLogin({ setToken, setAdminUser }) {
       setSessionToken(result.sessionToken);
       setToken(loginToken);
       setAdminUser(adminSession);
+      setAuthVerified(true);
       window.location.hash = '#dashboard';
     } catch (loginError) {
       setError(loginError.message);

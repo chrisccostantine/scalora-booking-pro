@@ -28,7 +28,7 @@ public class AuthService {
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, request.password()));
         var user = users.findByEmail(email).orElseThrow();
         user.setSessionToken(UUID.randomUUID().toString());
-        users.save(user);
+        users.saveAndFlush(user);
         return response(user, jwtService.generate(user));
     }
 
