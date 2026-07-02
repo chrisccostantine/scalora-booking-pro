@@ -26,13 +26,24 @@ public class AuthService {
         String email = normalizeEmail(request.email());
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, request.password()));
         var user = users.findByEmail(email).orElseThrow();
+        return response(user, jwtService.generate(user));
+    }
+
+    @Transactional(readOnly = true)
+    public LoginResponse me(String email) {
+        var user = users.findByEmail(normalizeEmail(email)).orElseThrow();
+        return response(user, null);
+    }
+
+    private LoginResponse response(com.scalora.bookingpro.entity.User user, String token) {
         var business = user.getBusiness();
         return new LoginResponse(
-            jwtService.generate(user),
+            token,
             user.getEmail(),
             user.getRole().name(),
             business == null ? null : business.getId(),
-            business == null ? null : business.getSlug()
+            business == null ? null : business.getSlug(),
+            business == null ? null : business.getName()
         );
     }
 

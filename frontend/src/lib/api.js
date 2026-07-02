@@ -44,13 +44,6 @@ async function request(path, options = {}) {
       const text = await response.text().catch(() => '');
       if (text.trim()) message = `${message}: ${text.trim().slice(0, 220)}`;
     }
-    if (response.status === 401) {
-      runtimeToken = '';
-      localStorage.removeItem('scalora_token');
-      sessionStorage.removeItem('scalora_token');
-      localStorage.removeItem('scalora_admin');
-      window.dispatchEvent(new Event('scalora-auth-expired'));
-    }
     throw new Error(`${path}: ${message}`);
   }
 
@@ -120,6 +113,7 @@ export const api = {
   getBusinessInfo: () => request('/business-info', { auth: false }),
   getBusinessProfileInfo: (slug) => request(`/businesses/${slug}/business-info`, { auth: false }),
   login: (payload) => request('/auth/login', { method: 'POST', body: JSON.stringify(payload), auth: false }),
+  me: () => request('/auth/me'),
   getSuperBusinesses: () => request('/super-admin/businesses'),
   getSuperAnalytics: () => request('/super-admin/analytics'),
   createSuperBusiness: (payload) => request('/super-admin/businesses', { method: 'POST', body: JSON.stringify(payload) }),

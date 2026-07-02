@@ -727,8 +727,11 @@ function AdminLogin({ setToken, setAdminUser }) {
       sessionStorage.setItem('scalora_token', loginToken);
       localStorage.setItem('scalora_admin', JSON.stringify(adminSession));
       setAuthToken(loginToken);
+      const verifiedSession = await api.me();
+      const completeSession = { ...adminSession, ...verifiedSession, token: loginToken };
+      localStorage.setItem('scalora_admin', JSON.stringify(completeSession));
       setToken(loginToken);
-      setAdminUser(adminSession);
+      setAdminUser(completeSession);
       window.location.hash = '#dashboard';
     } catch (loginError) {
       setError(loginError.message);
@@ -1542,23 +1545,33 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
   const managedBusinessId = selectedBusinessId || (adminUser?.businessId ? String(adminUser.businessId) : '');
 
   const loadAdminData = () => {
+    if (!isSuperAdmin) {
+      const assignedBusiness = adminUser?.businessId ? [{
+        id: adminUser.businessId,
+        name: adminUser.businessName || adminUser.businessSlug || 'Assigned business',
+        slug: adminUser.businessSlug || '',
+        active: true,
+      }] : [];
+      setBusinesses(assignedBusiness);
+      if (!selectedBusinessId && adminUser?.businessId) setSelectedBusinessId(String(adminUser.businessId));
+      if (!managedBusinessId && !adminUser?.businessId) return;
+      api.getBusinessAdminBookings(filters).then(setBookings).catch((error) => setAdminError(error.message));
+      api.getBusinessAdminBookings().then(setAllBookings).catch(() => setAllBookings([]));
+      api.getBusinessAdminStaff().then(setStaff).catch(() => setStaff([]));
+      api.getBusinessAdminServices().then(setServices).catch((error) => setAdminError(error.message));
+      api.getBusinessAdminTestimonials().then(setTestimonials).catch(() => setTestimonials([]));
+      api.getBusinessAdminInfo().then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
+      api.getBusinessAdminAvailability().then(setAvailability).catch(() => setAvailability([]));
+      return;
+    }
+
     api.getAdminBusinesses().then((items) => {
       setBusinesses(items);
       if (!selectedBusinessId && adminUser?.businessId) setSelectedBusinessId(String(adminUser.businessId));
       if (!selectedBusinessId && !adminUser?.businessId && items[0]?.id) setSelectedBusinessId(String(items[0].id));
     }).catch(() => {});
     if (!managedBusinessId) return;
-    if (isSuperAdmin) {
-      api.getAdminBusinessInfo(managedBusinessId).then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
-      return;
-    }
-    api.getBusinessAdminBookings(filters).then(setBookings).catch(() => setBookings([]));
-    api.getBusinessAdminBookings().then(setAllBookings).catch(() => setAllBookings([]));
-    api.getBusinessAdminStaff().then(setStaff).catch(() => setStaff([]));
-    api.getBusinessAdminServices().then(setServices).catch(() => {});
-    api.getBusinessAdminTestimonials().then(setTestimonials).catch(() => {});
-    api.getBusinessAdminInfo().then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
-    api.getBusinessAdminAvailability().then(setAvailability).catch(() => setAvailability([]));
+    api.getAdminBusinessInfo(managedBusinessId).then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
   };
 
   useEffect(loadAdminData, [filters.status, filters.date, filters.serviceId, selectedBusinessId, adminUser?.businessId, isSuperAdmin]);
