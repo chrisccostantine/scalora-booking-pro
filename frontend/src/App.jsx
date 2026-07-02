@@ -727,11 +727,8 @@ function AdminLogin({ setToken, setAdminUser }) {
       sessionStorage.setItem('scalora_token', loginToken);
       localStorage.setItem('scalora_admin', JSON.stringify(adminSession));
       setAuthToken(loginToken);
-      const verifiedSession = await api.me();
-      const completeSession = { ...adminSession, ...verifiedSession, token: loginToken };
-      localStorage.setItem('scalora_admin', JSON.stringify(completeSession));
       setToken(loginToken);
-      setAdminUser(completeSession);
+      setAdminUser(adminSession);
       window.location.hash = '#dashboard';
     } catch (loginError) {
       setError(loginError.message);
