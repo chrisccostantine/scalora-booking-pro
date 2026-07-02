@@ -18,13 +18,14 @@ function normalizeApiBaseUrl(value) {
 async function request(path, options = {}) {
   const savedAdmin = JSON.parse(localStorage.getItem('scalora_admin') || '{}');
   const token = runtimeToken || localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || savedAdmin.token || savedAdmin.accessToken || '';
+  const requestPath = token && options.auth !== false ? appendAccessToken(path, token) : path;
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
     ...(token && options.auth !== false ? { Authorization: `Bearer ${token}`, 'X-Auth-Token': token } : {}),
   };
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${API_BASE_URL}${requestPath}`, {
     ...options,
     headers,
   });
@@ -51,6 +52,11 @@ async function request(path, options = {}) {
   }
 
   return response.json();
+}
+
+function appendAccessToken(path, token) {
+  const separator = path.includes('?') ? '&' : '?';
+  return `${path}${separator}${new URLSearchParams({ access_token: token })}`;
 }
 
 function scopedPath(path, businessId) {

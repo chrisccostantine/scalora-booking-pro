@@ -31,6 +31,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } else {
             token = request.getHeader("X-Auth-Token");
         }
+        if ((token == null || token.isBlank()) && !isPublicRequest(request)) {
+            token = request.getParameter("access_token");
+        }
         if (token == null || token.isBlank()) {
             chain.doFilter(request, response);
             return;
@@ -48,5 +51,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.clearContext();
         }
         chain.doFilter(request, response);
+    }
+
+    private boolean isPublicRequest(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/api/public/")
+            || path.startsWith("/api/businesses/")
+            || path.equals("/api/auth/login")
+            || path.equals("/api/services")
+            || path.equals("/api/testimonials")
+            || path.equals("/api/business-info")
+            || path.equals("/api/bookings")
+            || path.equals("/api/contact");
     }
 }
