@@ -37,7 +37,7 @@ async function request(path, options = {}) {
       const text = await response.text().catch(() => '');
       if (text.trim()) message = `${message}: ${text.trim().slice(0, 220)}`;
     }
-    throw new Error(message);
+    throw new Error(`${path}: ${message}`);
   }
 
   if (response.status === 204) {
