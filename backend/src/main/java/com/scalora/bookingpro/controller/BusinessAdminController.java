@@ -4,6 +4,7 @@ import com.scalora.bookingpro.dto.AdminDtos.AvailabilityResponse;
 import com.scalora.bookingpro.dto.AdminDtos.AvailabilityRequest;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoRequest;
 import com.scalora.bookingpro.dto.AdminDtos.BusinessInfoResponse;
+import com.scalora.bookingpro.dto.AdminDtos.PasswordChangeRequest;
 import com.scalora.bookingpro.dto.AdminDtos.StaffRequest;
 import com.scalora.bookingpro.dto.AdminDtos.StaffResponse;
 import com.scalora.bookingpro.dto.AdminDtos.TestimonialRequest;
@@ -151,5 +152,11 @@ public class BusinessAdminController {
     @PutMapping("/business-settings")
     public BusinessInfoResponse settings(@RequestBody BusinessInfoRequest request, Authentication authentication) {
         return content.updateBusinessInfo(access.requiredBusinessScope(authentication, null), request);
+    }
+
+    @PutMapping("/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changePassword(@Valid @RequestBody PasswordChangeRequest request, Authentication authentication) {
+        content.changeCurrentUserPassword(access.currentUser(authentication), request.currentPassword(), request.newPassword());
     }
 }

@@ -176,4 +176,5 @@ export const api = {
   deleteBusinessAdminAvailability: (id) => request(`/business-admin/availability/${id}`, { method: 'DELETE' }),
   getBusinessAdminInfo: () => request('/business-admin/dashboard'),
   updateBusinessAdminInfo: (payload) => request('/business-admin/business-settings', { method: 'PUT', body: JSON.stringify(payload) }),
+  changeBusinessAdminPassword: (payload) => request('/business-admin/password', { method: 'PUT', body: JSON.stringify(payload) }),
 };

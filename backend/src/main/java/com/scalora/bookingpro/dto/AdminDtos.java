@@ -35,6 +35,7 @@ public class AdminDtos {
         String tiktokUrl,
         String ownerName,
         @Email String ownerEmail,
+        String ownerPassword,
         String temporaryPassword,
         boolean active
     ) {}
@@ -87,6 +88,7 @@ public class AdminDtos {
     public record AdminUserResponse(Long id, String email, String role, Long businessId, String businessName) {}
     public record OwnerPasswordResetRequest(@NotBlank String password) {}
     public record OwnerPasswordResetResponse(String email, Long businessId, String businessName) {}
+    public record PasswordChangeRequest(@NotBlank String currentPassword, @NotBlank String newPassword) {}
 
     public record AvailabilityRequest(@NotNull DayOfWeek dayOfWeek, @NotNull LocalTime startTime, @NotNull LocalTime endTime, @NotNull @Min(1) Integer capacity, boolean active) {}
     public record AvailabilityResponse(Long id, DayOfWeek dayOfWeek, LocalTime startTime, LocalTime endTime, Integer capacity, boolean active) {}

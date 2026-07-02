@@ -206,6 +206,17 @@ public class AdminContentService {
         return new OwnerPasswordResetResponse(email, business.getId(), business.getName());
     }
 
+    @Transactional
+    public void changeCurrentUserPassword(User user, String currentPassword, String newPassword) {
+        User existing = users.findByEmail(user.getEmail())
+            .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Admin user not found"));
+        if (!passwordEncoder.matches(currentPassword, existing.getPasswordHash())) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "Current password is incorrect.");
+        }
+        existing.setPasswordHash(passwordEncoder.encode(newPassword));
+        users.save(existing);
+    }
+
     public List<AvailabilityResponse> availability(Long businessId) {
         return availability.findByBusinessIdOrderByDayOfWeekAscStartTimeAsc(businessId).stream().map(this::availabilityResponse).toList();
     }
@@ -392,13 +403,14 @@ public class AdminContentService {
     private void upsertOwnerAdminIfRequested(Business business, BusinessRequest request) {
         String ownerEmail = normalizeEmail(request.ownerEmail());
         if (ownerEmail == null || ownerEmail.isBlank()) return;
-        if (request.temporaryPassword() == null || request.temporaryPassword().isBlank()) return;
+        String ownerPassword = defaultIfBlank(request.ownerPassword(), request.temporaryPassword());
+        if (ownerPassword == null || ownerPassword.isBlank()) return;
         User user = users.findByEmail(ownerEmail).orElseGet(User::new);
         if (user.getId() != null && (user.getBusiness() == null || !business.getId().equals(user.getBusiness().getId()))) {
             throw new ApiException(HttpStatus.CONFLICT, "Business owner email is already in use.");
         }
         user.setEmail(ownerEmail);
-        user.setPasswordHash(passwordEncoder.encode(request.temporaryPassword()));
+        user.setPasswordHash(passwordEncoder.encode(ownerPassword));
         user.setRole(Role.BUSINESS_ADMIN);
         user.setBusiness(business);
         users.save(user);

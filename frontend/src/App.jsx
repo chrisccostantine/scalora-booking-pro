@@ -759,7 +759,7 @@ const emptyBusinessDraft = {
   tiktokUrl: '',
   ownerName: '',
   ownerEmail: '',
-  temporaryPassword: '',
+  ownerPassword: '',
   active: true,
 };
 
@@ -773,10 +773,6 @@ function slugify(value) {
 
 function adminLoginLink() {
   return '/admin';
-}
-
-function generateTemporaryPassword() {
-  return `${Math.random().toString(36).slice(2, 10)}A!9`;
 }
 
 function imageList(value) {
@@ -890,8 +886,9 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
 
   const saveBusiness = async (event) => {
     event.preventDefault();
-    if (!editingBusiness && draft.ownerEmail && !draft.temporaryPassword) {
-      window.alert('Generate a temporary password before creating the business owner account.');
+    const ownerEmailChanged = editingBusiness && draft.ownerEmail && draft.ownerEmail !== editingBusiness.ownerEmail;
+    if (draft.ownerEmail && (!editingBusiness || ownerEmailChanged) && !draft.ownerPassword) {
+      window.alert('Add an owner password before creating or changing the business owner account.');
       return;
     }
     const payload = { ...draft, slug: slugify(draft.slug || draft.name) };
@@ -926,21 +923,22 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
       return;
     }
     try {
-      const password = generateTemporaryPassword();
+      const password = window.prompt(`Set a new password for ${business.ownerEmail}`);
+      if (!password) return;
       const result = await api.resetBusinessOwnerPassword(business.id, password);
       const ownerDetails = [
         `Owner dashboard: ${window.location.origin}${adminLoginLink()}`,
         `Business: ${result.businessName || business.name}`,
         `Email: ${result.email || business.ownerEmail}`,
-        `Temporary password: ${password}`,
+        `Password: ${password}`,
       ].join('\n');
       navigator.clipboard?.writeText(ownerDetails);
-      setOwnerPasswordNotice(`New owner password generated for ${result.email || business.ownerEmail}. Login details were copied.`);
+      setOwnerPasswordNotice(`Owner password updated for ${result.email || business.ownerEmail}. Login details were copied.`);
       setBusinesses((current) => current.map((item) => (
         item.id === business.id ? { ...item, ownerEmail: result.email || business.ownerEmail } : item
       )));
     } catch (error) {
-      window.alert(error.message || 'Could not reset owner password.');
+      window.alert(error.message || 'Could not update owner password.');
     }
   };
 
@@ -1110,7 +1108,7 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
         <section className="rounded-lg border border-line bg-white shadow-sm">
           <div className="border-b border-line p-5">
             <h3 className="text-lg font-bold">Business Owner Accounts</h3>
-            <p className="mt-1 text-sm text-graphite">Owner accounts are created when you add a business with owner email and a generated temporary password.</p>
+            <p className="mt-1 text-sm text-graphite">Owner accounts are created when you add a business with an owner email and password.</p>
           </div>
           <ResponsiveTable
             columns={['Business', 'Owner Name', 'Owner Email', 'Status', 'Action']}
@@ -1244,7 +1242,7 @@ function BusinessPreview({ business, onEdit, onResetOwnerPassword, ownerPassword
         <div className="mt-5 flex flex-wrap gap-2">
           <a className="btn-primary" href={publicLink(business.slug)} target="_blank" rel="noreferrer"><ExternalLink size={17} /> View Public Page</a>
           <button className="btn-secondary" onClick={onEdit}><Edit3 size={17} /> Edit Business</button>
-          <button className="btn-secondary" onClick={onResetOwnerPassword}><Copy size={17} /> Reset Owner Password</button>
+          <button className="btn-secondary" onClick={onResetOwnerPassword}><Copy size={17} /> Set Owner Password</button>
           <button className="btn-secondary" onClick={onManageServices}>Manage Services</button>
           <button className="btn-secondary" onClick={onManageStaff}>Manage Staff</button>
           <button className="btn-secondary" onClick={onManageBookings}>Manage Bookings</button>
@@ -1296,7 +1294,7 @@ function BusinessOperationsPanel({ panel, onClose }) {
       <div className={`mt-4 rounded-md px-4 py-3 text-sm ${ownerReady ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'}`}>
         {ownerReady
           ? `Owner account email: ${business.ownerEmail}. The owner can log in and manage ${section}.`
-          : 'No owner email is set. Edit this business, add the owner email, generate a temporary password, and save.'}
+          : 'No owner email is set. Edit this business, add the owner email and password, then save.'}
       </div>
     </section>
   );
@@ -1312,7 +1310,6 @@ function AnalyticsRow({ label, value }) {
 }
 
 function BusinessModal({ draft, setDraft, editing, onClose, onSubmit }) {
-  const [tempPassword, setTempPassword] = useState(draft.temporaryPassword || '');
   const [slugTouched, setSlugTouched] = useState(Boolean(draft.slug));
   const update = (field, value) => {
     setDraft((current) => ({
@@ -1331,7 +1328,7 @@ function BusinessModal({ draft, setDraft, editing, onClose, onSubmit }) {
     `Business page: ${window.location.origin}${link}`,
     `Owner dashboard: ${window.location.origin}${loginLink}`,
     `Email: ${draft.ownerEmail || 'owner email'}`,
-    `Temporary password: ${tempPassword || draft.temporaryPassword || 'generate password first'}`,
+    `Password: ${draft.ownerPassword || 'set owner password first'}`,
   ].join('\n');
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-ink/35 px-4 py-8">
@@ -1361,7 +1358,7 @@ function BusinessModal({ draft, setDraft, editing, onClose, onSubmit }) {
                 <span className="break-all font-mono">{window.location.origin}{loginLink}</span>
                 <button type="button" className="ml-auto text-teal" onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${loginLink}`)}><Copy size={16} /></button>
               </div>
-              <p className="mt-2 text-xs text-graphite">The owner signs in here with their owner email and temporary password, then sees only their business dashboard.</p>
+              <p className="mt-2 text-xs text-graphite">The owner signs in here with their owner email and password, then sees only their business dashboard.</p>
             </div>
             <div className="flex items-center gap-2 rounded-md border border-line bg-mist px-3 py-2 text-sm">
               <span className="truncate text-graphite">Copy owner invite</span>
@@ -1416,19 +1413,13 @@ function BusinessModal({ draft, setDraft, editing, onClose, onSubmit }) {
               <input placeholder="Business Owner Name" value={draft.ownerName} onChange={(event) => update('ownerName', event.target.value)} />
               <input type="email" placeholder="Business Owner Email" value={draft.ownerEmail} onChange={(event) => update('ownerEmail', event.target.value)} />
             </div>
-            <button
-              type="button"
-              className="btn-secondary w-full"
-              onClick={() => {
-                const generated = generateTemporaryPassword();
-                setTempPassword(generated);
-                update('temporaryPassword', generated);
-                navigator.clipboard?.writeText(generated);
-              }}
-            >
-              Generate temporary password
-            </button>
-            {tempPassword && <input readOnly value={tempPassword} aria-label="Generated temporary password" />}
+            <input
+              type="password"
+              placeholder={editing ? 'New owner password (leave blank to keep current)' : 'Business Owner Password'}
+              value={draft.ownerPassword}
+              onChange={(event) => update('ownerPassword', event.target.value)}
+              required={!editing && Boolean(draft.ownerEmail)}
+            />
           </div>
         </div>
         <div className="flex flex-col-reverse gap-3 border-t border-line px-5 py-4 sm:flex-row sm:justify-end">
@@ -1518,6 +1509,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
   const [editingAvailabilityId, setEditingAvailabilityId] = useState(null);
   const [adminMessage, setAdminMessage] = useState('');
   const [adminError, setAdminError] = useState('');
+  const [passwordDraft, setPasswordDraft] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const isSuperAdmin = adminUser?.role === 'SUPER_ADMIN' || adminUser?.role === 'ADMIN';
   const managedBusinessId = selectedBusinessId || (adminUser?.businessId ? String(adminUser.businessId) : '');
 
@@ -1706,6 +1698,29 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
       setAdminMessage('Availability saved.');
     } catch (error) {
       setAdminError(error.message || 'Could not save availability.');
+    }
+  };
+
+  const changePassword = async () => {
+    setAdminError('');
+    setAdminMessage('');
+    if (!passwordDraft.currentPassword || !passwordDraft.newPassword) {
+      setAdminError('Current password and new password are required.');
+      return;
+    }
+    if (passwordDraft.newPassword !== passwordDraft.confirmPassword) {
+      setAdminError('New password and confirmation do not match.');
+      return;
+    }
+    try {
+      await api.changeBusinessAdminPassword({
+        currentPassword: passwordDraft.currentPassword,
+        newPassword: passwordDraft.newPassword,
+      });
+      setPasswordDraft({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setAdminMessage('Password changed. Use the new password next time you log in.');
+    } catch (error) {
+      setAdminError(error.message || 'Could not change password.');
     }
   };
 
@@ -1976,6 +1991,33 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
             }
           }}>
             <Save size={18} /> Save Business Info
+          </button>
+        </section>
+
+        <section className="mt-8 rounded-lg border border-line bg-white p-5 shadow-sm">
+          <h2 className="mb-4 text-xl font-bold">Change Password</h2>
+          <div className="grid gap-3 md:grid-cols-3">
+            <input
+              type="password"
+              placeholder="Current password"
+              value={passwordDraft.currentPassword}
+              onChange={(event) => setPasswordDraft({ ...passwordDraft, currentPassword: event.target.value })}
+            />
+            <input
+              type="password"
+              placeholder="New password"
+              value={passwordDraft.newPassword}
+              onChange={(event) => setPasswordDraft({ ...passwordDraft, newPassword: event.target.value })}
+            />
+            <input
+              type="password"
+              placeholder="Confirm new password"
+              value={passwordDraft.confirmPassword}
+              onChange={(event) => setPasswordDraft({ ...passwordDraft, confirmPassword: event.target.value })}
+            />
+          </div>
+          <button className="btn-primary mt-4" onClick={changePassword}>
+            <Save size={18} /> Change Password
           </button>
         </section>
           </>
