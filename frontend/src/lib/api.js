@@ -5,14 +5,14 @@ const configuredApiBase =
 
 const API_BASE_URL = normalizeApiBaseUrl(configuredApiBase);
 let runtimeToken = cleanToken(localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || '');
-let runtimeSession = localStorage.getItem('scalora_session') || sessionStorage.getItem('scalora_session') || '';
+let runtimeSession = cleanToken(localStorage.getItem('scalora_session') || sessionStorage.getItem('scalora_session') || '');
 
 export function setAuthToken(token) {
   runtimeToken = cleanToken(token);
 }
 
 export function setSessionToken(sessionToken) {
-  runtimeSession = cleanSessionToken(sessionToken);
+  runtimeSession = cleanToken(sessionToken);
 }
 
 function normalizeApiBaseUrl(value) {
@@ -30,7 +30,7 @@ async function request(path, options = {}) {
     runtimeToken ||
     ''
   );
-  const sessionToken = cleanSessionToken(
+  const sessionToken = cleanToken(
     localStorage.getItem('scalora_session') ||
     sessionStorage.getItem('scalora_session') ||
     savedAdmin.sessionToken ||
@@ -39,7 +39,7 @@ async function request(path, options = {}) {
   );
   runtimeToken = token;
   runtimeSession = sessionToken;
-  const requestPath = options.auth !== false ? appendAuthParams(path, token, sessionToken) : path;
+  const requestPath = path;
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
@@ -102,26 +102,6 @@ function cleanToken(token) {
   const value = String(token || '').trim();
   if (!value || value === 'undefined' || value === 'null') return '';
   return value.split('.').length === 3 ? value : '';
-}
-
-function cleanSessionToken(sessionToken) {
-  const value = String(sessionToken || '').trim();
-  return !value || value === 'undefined' || value === 'null' ? '' : value;
-}
-
-function appendAuthParams(path, token, sessionToken) {
-  const params = new URLSearchParams();
-  if (token) {
-    params.set('access_token', token);
-    params.set('token', token);
-  }
-  if (sessionToken) {
-    params.set('session', sessionToken);
-    params.set('sessionToken', sessionToken);
-  }
-  if (!params.toString()) return path;
-  const separator = path.includes('?') ? '&' : '?';
-  return `${path}${separator}${params}`;
 }
 
 function scopedPath(path, businessId) {

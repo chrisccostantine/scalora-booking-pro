@@ -127,10 +127,11 @@ function App() {
         ...user,
         token,
       };
-      if (user.sessionToken) {
-        localStorage.setItem('scalora_session', user.sessionToken);
-        sessionStorage.setItem('scalora_session', user.sessionToken);
-        setSessionToken(user.sessionToken);
+      const refreshedSessionToken = cleanToken(user.sessionToken);
+      if (refreshedSessionToken) {
+        localStorage.setItem('scalora_session', refreshedSessionToken);
+        sessionStorage.setItem('scalora_session', refreshedSessionToken);
+        setSessionToken(refreshedSessionToken);
       }
       localStorage.setItem('scalora_admin', JSON.stringify(refreshedAdmin));
       setAdminUser(refreshedAdmin);
@@ -778,13 +779,14 @@ function AdminLogin({ setToken, setAdminUser, setAuthVerified }) {
       const adminSession = { ...result, token: loginToken };
       localStorage.setItem('scalora_token', loginToken);
       sessionStorage.setItem('scalora_token', loginToken);
-      if (result.sessionToken) {
-        localStorage.setItem('scalora_session', result.sessionToken);
-        sessionStorage.setItem('scalora_session', result.sessionToken);
+      const loginSessionToken = cleanToken(result.sessionToken);
+      if (loginSessionToken) {
+        localStorage.setItem('scalora_session', loginSessionToken);
+        sessionStorage.setItem('scalora_session', loginSessionToken);
       }
       localStorage.setItem('scalora_admin', JSON.stringify(adminSession));
       setAuthToken(loginToken);
-      setSessionToken(result.sessionToken);
+      setSessionToken(loginSessionToken);
       setToken(loginToken);
       setAdminUser(adminSession);
       setAuthVerified(true);
