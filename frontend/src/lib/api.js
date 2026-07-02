@@ -66,7 +66,7 @@ async function request(path, options = {}) {
       const text = await response.text().catch(() => '');
       if (text.trim()) message = `${message}: ${text.trim().slice(0, 220)}`;
     }
-    if (response.status === 401 && options.auth !== false) {
+    if (response.status === 401 && options.auth !== false && options.logoutOnUnauthorized !== false) {
       clearStoredAuth();
       window.dispatchEvent(new Event('scalora-auth-expired'));
     }
@@ -115,7 +115,10 @@ function appendAuthParams(path, token, sessionToken) {
     params.set('access_token', token);
     params.set('token', token);
   }
-  if (sessionToken) params.set('session', sessionToken);
+  if (sessionToken) {
+    params.set('session', sessionToken);
+    params.set('sessionToken', sessionToken);
+  }
   if (!params.toString()) return path;
   const separator = path.includes('?') ? '&' : '?';
   return `${path}${separator}${params}`;
@@ -190,26 +193,26 @@ export const api = {
     request(scopedPath('/admin/availability', businessId), { method: 'POST', body: JSON.stringify(payload) }),
   updateAvailability: (id, payload) => request(`/admin/availability/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteAvailability: (id) => request(`/admin/availability/${id}`, { method: 'DELETE' }),
-  getAdminServices: (businessId) => request(scopedPath('/admin/services', businessId)),
-  getBookings: (params = {}) => request(`/admin/bookings?${new URLSearchParams(params)}`),
+  getAdminServices: (businessId) => request(scopedPath('/admin/services', businessId), { logoutOnUnauthorized: false }),
+  getBookings: (params = {}) => request(`/admin/bookings?${new URLSearchParams(params)}`, { logoutOnUnauthorized: false }),
   updateBookingStatus: (id, status) =>
     request(`/admin/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   createService: (payload, businessId) =>
-    request(scopedPath('/admin/services', businessId), { method: 'POST', body: JSON.stringify(payload) }),
-  updateService: (id, payload) => request(`/admin/services/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  deleteService: (id) => request(`/admin/services/${id}`, { method: 'DELETE' }),
-  getStaff: (businessId) => request(scopedPath('/admin/staff', businessId)),
+    request(scopedPath('/admin/services', businessId), { method: 'POST', body: JSON.stringify(payload), logoutOnUnauthorized: false }),
+  updateService: (id, payload) => request(`/admin/services/${id}`, { method: 'PUT', body: JSON.stringify(payload), logoutOnUnauthorized: false }),
+  deleteService: (id) => request(`/admin/services/${id}`, { method: 'DELETE', logoutOnUnauthorized: false }),
+  getStaff: (businessId) => request(scopedPath('/admin/staff', businessId), { logoutOnUnauthorized: false }),
   createStaff: (payload, businessId) =>
-    request(scopedPath('/admin/staff', businessId), { method: 'POST', body: JSON.stringify(payload) }),
-  updateStaff: (id, payload) => request(`/admin/staff/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  deleteStaff: (id) => request(`/admin/staff/${id}`, { method: 'DELETE' }),
-  getAdminTestimonials: (businessId) => request(scopedPath('/admin/testimonials', businessId)),
+    request(scopedPath('/admin/staff', businessId), { method: 'POST', body: JSON.stringify(payload), logoutOnUnauthorized: false }),
+  updateStaff: (id, payload) => request(`/admin/staff/${id}`, { method: 'PUT', body: JSON.stringify(payload), logoutOnUnauthorized: false }),
+  deleteStaff: (id) => request(`/admin/staff/${id}`, { method: 'DELETE', logoutOnUnauthorized: false }),
+  getAdminTestimonials: (businessId) => request(scopedPath('/admin/testimonials', businessId), { logoutOnUnauthorized: false }),
   createTestimonial: (payload, businessId) =>
     request(scopedPath('/admin/testimonials', businessId), { method: 'POST', body: JSON.stringify(payload) }),
   updateTestimonial: (id, payload) =>
     request(`/admin/testimonials/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteTestimonial: (id) => request(`/admin/testimonials/${id}`, { method: 'DELETE' }),
-  getAdminBusinessInfo: (businessId) => request(scopedPath('/admin/business-info', businessId)),
+  getAdminBusinessInfo: (businessId) => request(scopedPath('/admin/business-info', businessId), { logoutOnUnauthorized: false }),
   updateBusinessInfo: (payload, businessId) =>
     request(scopedPath('/admin/business-info', businessId), { method: 'PUT', body: JSON.stringify(payload) }),
   getBusinessAdminServices: () => request('/business-admin/services'),
@@ -225,19 +228,19 @@ export const api = {
     if (params.status) query.set('status', params.status);
     if (params.date) query.set('date', params.date);
     if (params.serviceId) query.set('serviceId', params.serviceId);
-    return request(`/business-admin/bookings${query.toString() ? `?${query}` : ''}`);
+    return request(`/business-admin/bookings${query.toString() ? `?${query}` : ''}`, { logoutOnUnauthorized: false });
   },
   updateBusinessAdminBookingStatus: (id, status) =>
     request(`/business-admin/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-  getBusinessAdminTestimonials: () => request('/business-admin/testimonials'),
+  getBusinessAdminTestimonials: () => request('/business-admin/testimonials', { logoutOnUnauthorized: false }),
   createBusinessAdminTestimonial: (payload) => request('/business-admin/testimonials', { method: 'POST', body: JSON.stringify(payload) }),
   updateBusinessAdminTestimonial: (id, payload) => request(`/business-admin/testimonials/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteBusinessAdminTestimonial: (id) => request(`/business-admin/testimonials/${id}`, { method: 'DELETE' }),
-  getBusinessAdminAvailability: () => request('/business-admin/availability'),
+  getBusinessAdminAvailability: () => request('/business-admin/availability', { logoutOnUnauthorized: false }),
   createBusinessAdminAvailability: (payload) => request('/business-admin/availability', { method: 'POST', body: JSON.stringify(payload) }),
   updateBusinessAdminAvailability: (id, payload) => request(`/business-admin/availability/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteBusinessAdminAvailability: (id) => request(`/business-admin/availability/${id}`, { method: 'DELETE' }),
-  getBusinessAdminInfo: () => request('/business-admin/dashboard'),
+  getBusinessAdminInfo: () => request('/business-admin/dashboard', { logoutOnUnauthorized: false }),
   updateBusinessAdminInfo: (payload) => request('/business-admin/business-settings', { method: 'PUT', body: JSON.stringify(payload) }),
   changeBusinessAdminPassword: (payload) => request('/business-admin/password', { method: 'PUT', body: JSON.stringify(payload) }),
 };

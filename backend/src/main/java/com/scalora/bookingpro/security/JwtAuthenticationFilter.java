@@ -27,10 +27,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
         throws ServletException, IOException {
-        String sessionToken = request.getHeader("X-Session-Token");
-        if ((sessionToken == null || sessionToken.isBlank()) && !isPublicRequest(request)) {
-            sessionToken = request.getParameter("session");
-        }
+        String sessionToken = firstPresent(
+            request.getHeader("X-Session-Token"),
+            request.getHeader("X-Session"),
+            !isPublicRequest(request) ? request.getParameter("session") : null,
+            !isPublicRequest(request) ? request.getParameter("sessionToken") : null
+        );
         if (authenticateSession(sessionToken, request)) {
             chain.doFilter(request, response);
             return;
@@ -72,13 +74,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (sessionToken == null || sessionToken.isBlank() || SecurityContextHolder.getContext().getAuthentication() != null) {
             return false;
         }
-        return users.findBySessionToken(sessionToken).map(user -> {
+        return users.findBySessionToken(sessionToken.trim()).map(user -> {
             var details = userDetailsService.loadUserByUsername(user.getEmail());
             var auth = new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities());
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(auth);
             return true;
         }).orElse(false);
+    }
+
+    private String firstPresent(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private boolean isPublicRequest(HttpServletRequest request) {
