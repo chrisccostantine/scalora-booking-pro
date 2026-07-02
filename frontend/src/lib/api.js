@@ -12,7 +12,7 @@ export function setAuthToken(token) {
 }
 
 export function setSessionToken(sessionToken) {
-  runtimeSession = String(sessionToken || '').trim();
+  runtimeSession = cleanSessionToken(sessionToken);
 }
 
 function normalizeApiBaseUrl(value) {
@@ -21,9 +21,24 @@ function normalizeApiBaseUrl(value) {
 }
 
 async function request(path, options = {}) {
-  const savedAdmin = JSON.parse(localStorage.getItem('scalora_admin') || '{}');
-  const token = cleanToken(runtimeToken || localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || savedAdmin.token || savedAdmin.accessToken || '');
-  const sessionToken = runtimeSession || localStorage.getItem('scalora_session') || sessionStorage.getItem('scalora_session') || savedAdmin.sessionToken || '';
+  const savedAdmin = readSavedAdmin();
+  const token = cleanToken(
+    localStorage.getItem('scalora_token') ||
+    sessionStorage.getItem('scalora_token') ||
+    savedAdmin.token ||
+    savedAdmin.accessToken ||
+    runtimeToken ||
+    ''
+  );
+  const sessionToken = cleanSessionToken(
+    localStorage.getItem('scalora_session') ||
+    sessionStorage.getItem('scalora_session') ||
+    savedAdmin.sessionToken ||
+    runtimeSession ||
+    ''
+  );
+  runtimeToken = token;
+  runtimeSession = sessionToken;
   const requestPath = options.auth !== false ? appendAuthParams(path, token, sessionToken) : path;
   const headers = {
     'Content-Type': 'application/json',
@@ -61,10 +76,23 @@ async function request(path, options = {}) {
   return response.json();
 }
 
+function readSavedAdmin() {
+  try {
+    return JSON.parse(localStorage.getItem('scalora_admin') || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
 function cleanToken(token) {
   const value = String(token || '').trim();
   if (!value || value === 'undefined' || value === 'null') return '';
   return value.split('.').length === 3 ? value : '';
+}
+
+function cleanSessionToken(sessionToken) {
+  const value = String(sessionToken || '').trim();
+  return !value || value === 'undefined' || value === 'null' ? '' : value;
 }
 
 function appendAuthParams(path, token, sessionToken) {
