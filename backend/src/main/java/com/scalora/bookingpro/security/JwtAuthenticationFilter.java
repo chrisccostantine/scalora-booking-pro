@@ -37,6 +37,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
+        if (authenticateJwt(sessionToken, request)) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         String header = request.getHeader("Authorization");
         String token = null;
@@ -56,17 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        try {
-            String email = jwtService.subject(token);
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null && jwtService.isValid(token)) {
-                var details = userDetailsService.loadUserByUsername(email);
-                var auth = new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities());
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(auth);
-            }
-        } catch (RuntimeException ignored) {
-            SecurityContextHolder.clearContext();
-        }
+        authenticateJwt(token, request);
         chain.doFilter(request, response);
     }
 
@@ -81,6 +75,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(auth);
             return true;
         }).orElse(false);
+    }
+
+    private boolean authenticateJwt(String token, HttpServletRequest request) {
+        if (token == null || token.isBlank() || SecurityContextHolder.getContext().getAuthentication() != null) {
+            return false;
+        }
+        try {
+            String email = jwtService.subject(token.trim());
+            if (email != null && jwtService.isValid(token.trim())) {
+                var details = userDetailsService.loadUserByUsername(email);
+                var auth = new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities());
+                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(auth);
+                return true;
+            }
+        } catch (RuntimeException ignored) {
+            SecurityContextHolder.clearContext();
+        }
+        return false;
     }
 
     private String firstPresent(String... values) {

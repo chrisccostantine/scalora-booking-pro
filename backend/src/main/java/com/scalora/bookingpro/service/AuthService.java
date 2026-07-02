@@ -4,7 +4,6 @@ import com.scalora.bookingpro.dto.AuthDtos.LoginRequest;
 import com.scalora.bookingpro.dto.AuthDtos.LoginResponse;
 import com.scalora.bookingpro.repository.UserRepository;
 import com.scalora.bookingpro.security.JwtService;
-import java.util.UUID;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
@@ -27,9 +26,10 @@ public class AuthService {
         String email = normalizeEmail(request.email());
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, request.password()));
         var user = users.findByEmail(email).orElseThrow();
-        user.setSessionToken(UUID.randomUUID().toString());
+        String token = jwtService.generate(user);
+        user.setSessionToken(token);
         users.saveAndFlush(user);
-        return response(user, jwtService.generate(user));
+        return response(user, token);
     }
 
     @Transactional(readOnly = true)

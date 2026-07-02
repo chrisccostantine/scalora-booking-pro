@@ -12,13 +12,14 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class JwtService {
+    private static final long DEFAULT_EXPIRATION_MS = 86_400_000L;
     private final SecretKey key;
     private final long expirationMs;
 
     public JwtService(@Value("${app.jwt.secret}") String secret, @Value("${app.jwt.expiration-ms}") long expirationMs) {
         String normalized = secret.length() < 32 ? secret + "0".repeat(32 - secret.length()) : secret;
         this.key = Keys.hmacShaKeyFor(normalized.getBytes(StandardCharsets.UTF_8));
-        this.expirationMs = expirationMs;
+        this.expirationMs = expirationMs > 0 ? expirationMs : DEFAULT_EXPIRATION_MS;
     }
 
     public String generate(User user) {
