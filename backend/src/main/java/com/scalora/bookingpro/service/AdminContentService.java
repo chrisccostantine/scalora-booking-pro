@@ -404,8 +404,16 @@ public class AdminContentService {
         String ownerEmail = normalizeEmail(request.ownerEmail());
         if (ownerEmail == null || ownerEmail.isBlank()) return;
         String ownerPassword = defaultIfBlank(request.ownerPassword(), request.temporaryPassword());
-        if (ownerPassword == null || ownerPassword.isBlank()) return;
-        User user = users.findByEmail(ownerEmail).orElseGet(User::new);
+        User user = users.findByEmail(ownerEmail).orElse(null);
+        if (ownerPassword == null || ownerPassword.isBlank()) {
+            if (user != null && user.getBusiness() != null && business.getId().equals(user.getBusiness().getId())) {
+                return;
+            }
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Owner password is required to create the business login account.");
+        }
+        if (user == null) {
+            user = new User();
+        }
         if (user.getId() != null && (user.getBusiness() == null || !business.getId().equals(user.getBusiness().getId()))) {
             throw new ApiException(HttpStatus.CONFLICT, "Business owner email is already in use.");
         }

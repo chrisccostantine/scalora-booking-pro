@@ -914,7 +914,8 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
   const saveBusiness = async (event) => {
     event.preventDefault();
     const ownerEmailChanged = editingBusiness && draft.ownerEmail && draft.ownerEmail !== editingBusiness.ownerEmail;
-    if (draft.ownerEmail && (!editingBusiness || ownerEmailChanged) && !draft.ownerPassword) {
+    const ownerAccountMissing = editingBusiness && draft.ownerEmail && !editingBusiness.ownerEmail;
+    if (draft.ownerEmail && (!editingBusiness || ownerEmailChanged || ownerAccountMissing) && !draft.ownerPassword) {
       window.alert('Add an owner password before creating or changing the business owner account.');
       return;
     }
