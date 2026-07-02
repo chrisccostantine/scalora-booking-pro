@@ -4,10 +4,10 @@ const configuredApiBase =
   'http://localhost:8080/api';
 
 const API_BASE_URL = normalizeApiBaseUrl(configuredApiBase);
-let runtimeToken = localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || '';
+let runtimeToken = cleanToken(localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || '');
 
 export function setAuthToken(token) {
-  runtimeToken = token || '';
+  runtimeToken = cleanToken(token);
 }
 
 function normalizeApiBaseUrl(value) {
@@ -17,7 +17,7 @@ function normalizeApiBaseUrl(value) {
 
 async function request(path, options = {}) {
   const savedAdmin = JSON.parse(localStorage.getItem('scalora_admin') || '{}');
-  const token = runtimeToken || localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || savedAdmin.token || savedAdmin.accessToken || '';
+  const token = cleanToken(runtimeToken || localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || savedAdmin.token || savedAdmin.accessToken || '');
   const requestPath = token && options.auth !== false ? appendAccessToken(path, token) : path;
   const headers = {
     'Content-Type': 'application/json',
@@ -44,6 +44,13 @@ async function request(path, options = {}) {
       const text = await response.text().catch(() => '');
       if (text.trim()) message = `${message}: ${text.trim().slice(0, 220)}`;
     }
+    if (response.status === 401) {
+      runtimeToken = '';
+      localStorage.removeItem('scalora_token');
+      sessionStorage.removeItem('scalora_token');
+      localStorage.removeItem('scalora_admin');
+      window.dispatchEvent(new Event('scalora-auth-expired'));
+    }
     throw new Error(`${path}: ${message}`);
   }
 
@@ -52,6 +59,12 @@ async function request(path, options = {}) {
   }
 
   return response.json();
+}
+
+function cleanToken(token) {
+  const value = String(token || '').trim();
+  if (!value || value === 'undefined' || value === 'null') return '';
+  return value.split('.').length === 3 ? value : '';
 }
 
 function appendAccessToken(path, token) {

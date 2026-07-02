@@ -63,6 +63,12 @@ function businessSlugFromPath() {
   return match ? match[1] : '';
 }
 
+function cleanToken(token) {
+  const value = String(token || '').trim();
+  if (!value || value === 'undefined' || value === 'null') return '';
+  return value.split('.').length === 3 ? value : '';
+}
+
 function App() {
   const [route, setRoute] = useState(window.location.hash || '#home');
   const [profileSlug, setProfileSlug] = useState(businessSlugFromPath());
@@ -73,7 +79,7 @@ function App() {
   const [testimonials, setTestimonials] = useState(fallbackTestimonials);
   const [businessInfo, setBusinessInfo] = useState(fallbackBusiness);
   const [businessUnavailable, setBusinessUnavailable] = useState(false);
-  const [token, setToken] = useState(localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token'));
+  const [token, setToken] = useState(cleanToken(localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token')));
   const [adminUser, setAdminUser] = useState(() => {
     const stored = localStorage.getItem('scalora_admin');
     return stored ? JSON.parse(stored) : null;
@@ -84,12 +90,33 @@ function App() {
   }, [token]);
 
   useEffect(() => {
+    if (!token && adminUser) {
+      localStorage.removeItem('scalora_token');
+      sessionStorage.removeItem('scalora_token');
+      localStorage.removeItem('scalora_admin');
+      setAdminUser(null);
+      setAuthToken('');
+      if (window.location.pathname === '/admin') window.location.hash = '#admin';
+    }
+  }, [token, adminUser]);
+
+  useEffect(() => {
     const onHashChange = () => {
       setRoute(window.location.hash || '#home');
       setProfileSlug(businessSlugFromPath());
     };
+    const onAuthExpired = () => {
+      setToken(null);
+      setAdminUser(null);
+      setAuthToken('');
+      if (window.location.pathname === '/admin') window.location.hash = '#admin';
+    };
     window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    window.addEventListener('scalora-auth-expired', onAuthExpired);
+    return () => {
+      window.removeEventListener('hashchange', onHashChange);
+      window.removeEventListener('scalora-auth-expired', onAuthExpired);
+    };
   }, []);
 
   useEffect(() => {
@@ -691,7 +718,7 @@ function AdminLogin({ setToken, setAdminUser }) {
     setError('');
     try {
       const result = await api.login(form);
-      const loginToken = result.token || result.accessToken;
+      const loginToken = cleanToken(result.token || result.accessToken);
       if (!loginToken) {
         throw new Error('Login succeeded but no authentication token was returned.');
       }
