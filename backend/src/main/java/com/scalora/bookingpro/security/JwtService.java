@@ -37,6 +37,10 @@ public class JwtService {
         return claims(token).getSubject();
     }
 
+    public String role(String token) {
+        return claims(token).get("role", String.class);
+    }
+
     public boolean isValid(String token) {
         return claims(token).getExpiration().after(new Date());
     }
