@@ -25,7 +25,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { api } from './lib/api';
+import { api, setAuthToken } from './lib/api';
 
 const fallbackServices = [];
 const fallbackTestimonials = [];
@@ -78,6 +78,10 @@ function App() {
     const stored = localStorage.getItem('scalora_admin');
     return stored ? JSON.parse(stored) : null;
   });
+
+  useEffect(() => {
+    setAuthToken(token);
+  }, [token]);
 
   useEffect(() => {
     const onHashChange = () => {
@@ -695,6 +699,7 @@ function AdminLogin({ setToken, setAdminUser }) {
       localStorage.setItem('scalora_token', loginToken);
       sessionStorage.setItem('scalora_token', loginToken);
       localStorage.setItem('scalora_admin', JSON.stringify(adminSession));
+      setAuthToken(loginToken);
       setToken(loginToken);
       setAdminUser(adminSession);
       window.location.hash = '#dashboard';
@@ -865,6 +870,7 @@ function SuperAdminDashboard({ setToken, setAdminUser, adminUser, businesses, se
     localStorage.removeItem('scalora_token');
     sessionStorage.removeItem('scalora_token');
     localStorage.removeItem('scalora_admin');
+    setAuthToken('');
     setToken(null);
     setAdminUser(null);
     window.location.hash = '#admin';
@@ -1548,6 +1554,7 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
     localStorage.removeItem('scalora_token');
     sessionStorage.removeItem('scalora_token');
     localStorage.removeItem('scalora_admin');
+    setAuthToken('');
     setToken(null);
     setAdminUser(null);
     window.location.hash = '#admin';

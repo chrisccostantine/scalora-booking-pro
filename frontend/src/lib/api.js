@@ -4,6 +4,11 @@ const configuredApiBase =
   'http://localhost:8080/api';
 
 const API_BASE_URL = normalizeApiBaseUrl(configuredApiBase);
+let runtimeToken = localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || '';
+
+export function setAuthToken(token) {
+  runtimeToken = token || '';
+}
 
 function normalizeApiBaseUrl(value) {
   const trimmed = String(value || '').replace(/\/+$/, '');
@@ -12,7 +17,7 @@ function normalizeApiBaseUrl(value) {
 
 async function request(path, options = {}) {
   const savedAdmin = JSON.parse(localStorage.getItem('scalora_admin') || '{}');
-  const token = localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || savedAdmin.token || savedAdmin.accessToken || '';
+  const token = runtimeToken || localStorage.getItem('scalora_token') || sessionStorage.getItem('scalora_token') || savedAdmin.token || savedAdmin.accessToken || '';
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
@@ -95,7 +100,7 @@ export const api = {
     request(slug ? `/businesses/${slug}/contact` : '/contact', { method: 'POST', body: JSON.stringify(payload), auth: false }),
   getBusinessInfo: () => request('/business-info', { auth: false }),
   getBusinessProfileInfo: (slug) => request(`/businesses/${slug}/business-info`, { auth: false }),
-  login: (payload) => request('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
+  login: (payload) => request('/auth/login', { method: 'POST', body: JSON.stringify(payload), auth: false }),
   getSuperBusinesses: () => request('/super-admin/businesses'),
   getSuperAnalytics: () => request('/super-admin/analytics'),
   createSuperBusiness: (payload) => request('/super-admin/businesses', { method: 'POST', body: JSON.stringify(payload) }),
