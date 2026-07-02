@@ -62,7 +62,7 @@ function cleanToken(token) {
 
 function appendAccessToken(path, token) {
   const separator = path.includes('?') ? '&' : '?';
-  return `${path}${separator}${new URLSearchParams({ access_token: token })}`;
+  return `${path}${separator}${new URLSearchParams({ access_token: token, token })}`;
 }
 
 function scopedPath(path, businessId) {

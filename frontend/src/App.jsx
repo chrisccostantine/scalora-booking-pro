@@ -1552,10 +1552,10 @@ function AdminDashboard({ setToken, adminUser, setAdminUser, services, setServic
       setBusinesses(assignedBusiness);
       if (!selectedBusinessId && adminUser?.businessId) setSelectedBusinessId(String(adminUser.businessId));
       if (!managedBusinessId && !adminUser?.businessId) return;
-      api.getBusinessAdminBookings(filters).then(setBookings).catch((error) => setAdminError(error.message));
+      api.getBusinessAdminBookings(filters).then(setBookings).catch(() => setBookings([]));
       api.getBusinessAdminBookings().then(setAllBookings).catch(() => setAllBookings([]));
       api.getBusinessAdminStaff().then(setStaff).catch(() => setStaff([]));
-      api.getBusinessAdminServices().then(setServices).catch((error) => setAdminError(error.message));
+      api.getBusinessAdminServices().then(setServices).catch(() => setServices([]));
       api.getBusinessAdminTestimonials().then(setTestimonials).catch(() => setTestimonials([]));
       api.getBusinessAdminInfo().then((info) => setBusinessInfo({ ...fallbackBusiness, ...info })).catch(() => {});
       api.getBusinessAdminAvailability().then(setAvailability).catch(() => setAvailability([]));

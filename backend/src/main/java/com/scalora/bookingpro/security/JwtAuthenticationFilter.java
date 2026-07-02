@@ -34,6 +34,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if ((token == null || token.isBlank()) && !isPublicRequest(request)) {
             token = request.getParameter("access_token");
         }
+        if ((token == null || token.isBlank()) && !isPublicRequest(request)) {
+            token = request.getParameter("token");
+        }
         if (token == null || token.isBlank()) {
             chain.doFilter(request, response);
             return;
